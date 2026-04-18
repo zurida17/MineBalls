@@ -574,15 +574,15 @@ const CUSTOM_ASSET_FOLDERS = [
   };
 
   const ELEMENT_SOUND_VARIANTS = {
-    fire: ["burn_1", "burn_2", "ignite_1", "ignite_2", "fire", "flint_and_steel", "blaze_rod", "blaze_rod_1", "blaze_rod_2"],
-    lava: ["lava_burst_1", "lava_burst_2", "lava_sizzle_1", "lava_sizzle_2", "lava", "lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3"],
-    water: ["water_splash_1", "water_splash_2", "water_splash_3", "water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3"],
-    ice: ["ice_crack_1", "ice_crack_2", "ice_crack_3", "ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4"],
-    ender: ["ender_blink_1", "ender_blink_2", "ender_blink_3", "ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport", "respawn_anchor", "crying_obsidian_2"],
-    magic: ["magic_pop_1", "magic_pop_2", "magic_pop_3", "magic", "experience_bottle", "written_book", "invisibility", "gravity", "totem_of_undying"],
-    nature: ["nature_buzz_1", "nature_buzz_2", "nature_buzz_3", "nature", "beehive", "beehive_1", "beehive_2", "bone_meal", "bone_meal_1", "bone_meal_2"],
-    metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "hopper_minecart", "observer", "trident", "trident_1"],
-    wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "fishing_rod", "fishing_rod_1"],
+    fire: ["burn_1", "burn_2", "ignite_1", "ignite_2", "fire", "flint_and_steel", "blaze_rod", "blaze_rod_1", "blaze_rod_2", "jack_o_lantern", "jack_o_lantern_1"],
+    lava: ["lava_burst_1", "lava_burst_2", "lava_sizzle_1", "lava_sizzle_2", "lava", "lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3", "fire"],
+    water: ["water_splash_1", "water_splash_2", "water_splash_3", "water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3", "boat_3", "boat_4"],
+    ice: ["ice_crack_1", "ice_crack_2", "ice_crack_3", "ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4", "turtle_scute"],
+    ender: ["ender_blink_1", "ender_blink_2", "ender_blink_3", "ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport", "respawn_anchor", "crying_obsidian_2", "shulker_box"],
+    magic: ["magic_pop_1", "magic_pop_2", "magic_pop_3", "magic", "experience_bottle", "written_book", "invisibility", "gravity", "totem_of_undying", "book_laser_1", "book_lightning_1", "book_quake_1"],
+    nature: ["nature_buzz_1", "nature_buzz_2", "nature_buzz_3", "nature", "beehive", "beehive_1", "beehive_2", "beehive_3", "beehive_4", "bone_meal", "bone_meal_1", "bone_meal_2", "bone_meal_3", "bone_meal_4", "rotten_flesh", "rotten_flesh_1"],
+    metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "rail_3", "hopper_minecart", "observer", "observer_1", "observer_2", "observer_3", "trident", "trident_1", "trident_2"],
+    wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "boat_3", "boat_4", "fishing_rod", "fishing_rod_1", "fishing_rod_2", "fishing_rod_3", "fishing_rod_4"],
     slime: ["slime_splat_1", "slime_splat_2", "slime", "slime_1", "slime_2"],
     explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor", "thunder_2"],
   };
@@ -9700,16 +9700,36 @@ URL.revokeObjectURL(link.href);
 
     drawTopSide(ctx, fighter, x, align) {
       ctx.save();
+      const panelWidth = 360;
+      const panelHeight = 74;
+      const panelX = align === "left" ? 12 : WIDTH - panelWidth - 12;
+      const panelY = 8;
+      ctx.fillStyle = "rgba(8, 12, 24, 0.88)";
+      ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+      ctx.strokeStyle = fighter.side === "left" ? "rgba(110, 255, 117, 0.24)" : "rgba(104, 200, 255, 0.24)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+
+      const textX = align === "left" ? panelX + 20 : panelX + panelWidth - 20;
       ctx.textAlign = align;
       ctx.fillStyle = fighter.side === "left" ? CUSTOM_ASSETS.palette.hudLeft : CUSTOM_ASSETS.palette.hudRight;
-      ctx.font = "bold 28px Consolas, monospace";
-      ctx.fillText(fighter.name.toUpperCase(), x, 34);
+      ctx.font = "bold 34px Consolas, monospace";
+      ctx.textBaseline = "top";
+      ctx.fillText(fighter.name.toUpperCase(), textX, panelY + 12);
 
-      this.drawMiniIcon(ctx, fighter, align === "left" ? x + 26 : x - 26, 62);
+      const meta = WEAPON_LIBRARY[fighter.weaponId] || LEGACY_WEAPON_LIBRARY[fighter.weaponId];
+      if (meta && meta.badge) {
+        ctx.font = "bold 18px Consolas, monospace";
+        ctx.fillStyle = "#cfd8ff";
+        ctx.fillText(meta.badge.toUpperCase(), textX, panelY + 44);
+      }
+
+      const iconX = align === "left" ? panelX + panelWidth - 52 : panelX + 52;
+      this.drawMiniIcon(ctx, fighter, iconX, panelY + 38, 64);
       ctx.restore();
     }
 
-    drawMiniIcon(ctx, fighter, x, y) {
+    drawMiniIcon(ctx, fighter, x, y, size = 54) {
       const meta = WEAPON_LIBRARY[fighter.weaponId] || LEGACY_WEAPON_LIBRARY[fighter.weaponId];
       const hudSpriteMap = {
         rail: "hudRail", boat: "hudBoat", fishingRod: "hudFishingRod", loyaltyTrident: "hudTrident",
@@ -9723,35 +9743,35 @@ URL.revokeObjectURL(link.href);
         invisPotion: "hudInvisPotion", gravityPotion: "hudGravityPotion", turtlePotion: "hudTurtlePotion"
       };
       const spriteKey = hudSpriteMap[fighter.weaponId] || null;
-      if (spriteKey && this.drawSprite(ctx, spriteKey, x, y, 54, 54)) {
+      if (spriteKey && this.drawSprite(ctx, spriteKey, x, y, size, size)) {
         return;
       }
-      if (drawProceduralWeaponSprite(ctx, fighter.weaponId, x, y, 54, 54)) {
+      if (drawProceduralWeaponSprite(ctx, fighter.weaponId, x, y, size, size)) {
         return;
       }
       ctx.save();
       ctx.translate(x, y);
       if (fighter.weaponId === "rail") {
         ctx.fillStyle = CUSTOM_ASSETS.wagon.shell;
-        ctx.fillRect(-22, -14, 44, 28);
+        ctx.fillRect(-size * 0.34, -size * 0.22, size * 0.68, size * 0.4);
         ctx.fillStyle = CUSTOM_ASSETS.wagon.trim;
-        ctx.fillRect(-17, -10, 34, 8);
+        ctx.fillRect(-size * 0.27, -size * 0.17, size * 0.54, size * 0.18);
       } else if (fighter.weaponId === "boat") {
         ctx.fillStyle = "#92673d";
         ctx.beginPath();
-        ctx.moveTo(-24, 0);
-        ctx.quadraticCurveTo(0, -16, 24, 0);
-        ctx.quadraticCurveTo(0, 16, -24, 0);
+        ctx.moveTo(-size * 0.44, 0);
+        ctx.quadraticCurveTo(0, -size * 0.28, size * 0.44, 0);
+        ctx.quadraticCurveTo(0, size * 0.28, -size * 0.44, 0);
         ctx.fill();
         ctx.fillStyle = fighter.weapon.bucketKind === "lava" ? "#ff934d" : "#dbf7ff";
-        ctx.fillRect(16, -18, 14, 14);
+        ctx.fillRect(size * 0.42, -size * 0.28, size * 0.22, size * 0.22);
       } else {
         ctx.fillStyle = (meta && meta.color) || "#dbe7ff";
         ctx.beginPath();
-        ctx.arc(0, 0, 24, 0, Math.PI * 2);
+        ctx.arc(0, 0, size * 0.44, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#101821";
-        ctx.font = "bold 13px Consolas, monospace";
+        ctx.font = `bold ${Math.max(12, Math.round(size * 0.22))}px Consolas, monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText((meta && meta.badge) || "??", 0, 1);
@@ -9761,15 +9781,28 @@ URL.revokeObjectURL(link.href);
 
     drawBottomSide(ctx, fighter, x, align) {
       ctx.save();
-      ctx.textAlign = align;
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "18px Consolas, monospace";
-      ctx.fillText(`${fighter.side === "left" ? TEXT.hpLeft : TEXT.hpRight}: ${Math.ceil(fighter.hp)}`, x, HEIGHT - 30);
-
-      ctx.fillStyle = "#aeb8ca";
-      ctx.font = "14px Consolas, monospace";
       const statusText = fighter.statusList.map((key) => TEXT.statuses[key] || key).join(" | ");
-      ctx.fillText(statusText, x, HEIGHT - 10);
+      const panelWidth = 380;
+      const panelHeight = statusText ? 58 : 42;
+      const panelX = align === "left" ? 12 : WIDTH - panelWidth - 12;
+      const panelY = HEIGHT - panelHeight - 12;
+
+      ctx.fillStyle = "rgba(6, 10, 18, 0.88)";
+      ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+
+      const textX = align === "left" ? panelX + 18 : panelX + panelWidth - 18;
+      ctx.textAlign = align;
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 20px Consolas, monospace";
+      ctx.fillText(`${fighter.side === "left" ? TEXT.hpLeft : TEXT.hpRight}: ${Math.ceil(fighter.hp)}`, textX, panelY + 10);
+
+      ctx.fillStyle = statusText ? "#aeb8ca" : "#7ec3ff";
+      ctx.font = "14px Consolas, monospace";
+      ctx.fillText(statusText || TEXT.ready, textX, panelY + 32);
       ctx.restore();
     }
 
