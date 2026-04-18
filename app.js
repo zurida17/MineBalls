@@ -771,6 +771,7 @@ function buildAssetCandidates(name, explicit = []) {
 
     const AUDIO = {
       ctx: null,
+      recordingDestination: null,
       sampleCache: new Map(),
       lastSampleIndex: new Map(),
       loadingSamples: new Set(),
@@ -782,9 +783,19 @@ function buildAssetCandidates(name, explicit = []) {
         }
         try {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          this.recordingDestination = this.ctx.createMediaStreamDestination();
         } catch (e) {
           console.warn("Audio not supported");
         }
+      },
+      ensureRecordingDestination() {
+        if (!this.ctx) {
+          this.init();
+        }
+        if (this.ctx && !this.recordingDestination) {
+          this.recordingDestination = this.ctx.createMediaStreamDestination();
+        }
+        return this.recordingDestination;
       },
       resume() {
         if (this.ctx && this.ctx.state === "suspended") {
@@ -878,6 +889,17 @@ function buildAssetCandidates(name, explicit = []) {
           instance.volume = clamp(options.volume ?? 0.55, 0, 1);
           instance.playbackRate = jitteredPlayback;
           instance.preservesPitch = false;
+          if (this.ctx) {
+            instance.muted = true;
+            const sourceNode = this.ctx.createMediaElementSource(instance);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(clamp(options.volume ?? 0.55, 0, 1), this.ctx.currentTime);
+            sourceNode.connect(gain);
+            gain.connect(this.ctx.destination);
+            if (this.recordingDestination) {
+              gain.connect(this.recordingDestination);
+            }
+          }
           const playPromise = instance.play();
           if (playPromise && typeof playPromise.catch === "function") {
             playPromise.catch(() => {});
@@ -899,6 +921,9 @@ function buildAssetCandidates(name, explicit = []) {
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        if (this.recordingDestination) {
+          gain.connect(this.recordingDestination);
+        }
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
       },
@@ -915,6 +940,9 @@ function buildAssetCandidates(name, explicit = []) {
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
+        if (this.recordingDestination) {
+          gain.connect(this.recordingDestination);
+        }
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
       },
@@ -935,6 +963,9 @@ function buildAssetCandidates(name, explicit = []) {
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
         source.connect(gain);
         gain.connect(this.ctx.destination);
+        if (this.recordingDestination) {
+          gain.connect(this.recordingDestination);
+        }
         source.start();
       },
       playNamed(key, aliases, fallback, options = {}) {
@@ -8128,8 +8159,23 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
       this.recordingCtx = this.recordingCanvas.getContext("2d");
-      this.recordingStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+      this.recordingStream = this.createRecordingStream();
       this.syncRecordingButtons();
+    }
+
+    createRecordingStream() {
+      if (!this.recordingCanvas) {
+        return null;
+      }
+      const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+      const audioDestination = AUDIO.ensureRecordingDestination();
+      if (audioDestination && audioDestination.stream) {
+        const combined = new MediaStream();
+        videoStream.getVideoTracks().forEach((track) => combined.addTrack(track));
+        audioDestination.stream.getAudioTracks().forEach((track) => combined.addTrack(track));
+        return combined;
+      }
+      return videoStream;
     }
 
 syncRecordingButtons() {
@@ -8176,6 +8222,11 @@ startBattleRecording() {
         return;
       }
       this.stopBattleRecording({ keepCurrent: false });
+      this.recordingStream = this.createRecordingStream();
+      if (!this.recordingStream) {
+        console.log("Не удалось создать поток записи.");
+        return;
+      }
       this.recordingMime = this.getRecordingMimeType();
       this.recordedChunks = [];
       const options = this.recordingMime ? { mimeType: this.recordingMime, videoBitsPerSecond: 2500000 } : { videoBitsPerSecond: 2500000 };
@@ -8240,12 +8291,13 @@ downloadBattleRecording() {
       const ctx = this.recordingCtx;
       const targetWidth = this.recordingCanvas.width;
       const targetHeight = this.recordingCanvas.height;
-      const contentSize = Math.min(targetWidth, targetHeight);
+      const contentSize = Math.min(targetWidth, targetHeight - 220);
       const offsetX = Math.round((targetWidth - contentSize) * 0.5);
-      const offsetY = Math.round((targetHeight - contentSize) * 0.5);
+      const offsetY = Math.round((targetHeight - contentSize) * 0.5) + 90;
 
-      ctx.fillStyle = "#000000";
+      ctx.fillStyle = "#070b18";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
+      this.drawRecordingHeader(ctx, 0, 0, targetWidth, 160);
       ctx.drawImage(
         this.canvas,
         ARENA.x,
@@ -8257,6 +8309,44 @@ downloadBattleRecording() {
         contentSize,
         contentSize
       );
+    }
+
+    drawRecordingHeader(ctx, x, y, width, height = 160) {
+      const leftFighter = this.fighters && this.fighters[0];
+      const rightFighter = this.fighters && this.fighters[1];
+      const leftWeaponId = leftFighter?.weaponId || this.selected?.left || "";
+      const rightWeaponId = rightFighter?.weaponId || this.selected?.right || "";
+      const leftMeta = leftFighter
+        ? { name: leftFighter.name, weaponId: leftFighter.weaponId, side: "left" }
+        : { name: this.getWeaponMeta(leftWeaponId)?.title || "LEFT", weaponId: leftWeaponId, side: "left" };
+      const rightMeta = rightFighter
+        ? { name: rightFighter.name, weaponId: rightFighter.weaponId, side: "right" }
+        : { name: this.getWeaponMeta(rightWeaponId)?.title || "RIGHT", weaponId: rightWeaponId, side: "right" };
+
+      ctx.save();
+      ctx.fillStyle = "rgba(5, 10, 22, 0.96)";
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 4, y + 4, width - 8, height - 8);
+
+      const iconY = y + Math.round(height * 0.5);
+      this.drawMiniIcon(ctx, leftMeta, 72, iconY);
+      this.drawMiniIcon(ctx, rightMeta, width - 72, iconY);
+
+      ctx.fillStyle = "#f9fbff";
+      ctx.font = "bold 34px Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(leftMeta.name.toUpperCase(), 124, y + 56);
+
+      ctx.textAlign = "right";
+      ctx.fillText(rightMeta.name.toUpperCase(), width - 124, y + 56);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.56)";
+      ctx.font = "bold 32px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("VS", width * 0.5, y + 56);
+      ctx.restore();
     }
 
     loadCustomBackground() {
