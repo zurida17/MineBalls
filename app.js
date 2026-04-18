@@ -444,6 +444,33 @@ const CUSTOM_ASSET_FOLDERS = [
     "./assets/sounds",
   ];
   const CUSTOM_SOUND_EXTENSIONS = [".ogg", ".wav", ".mp3"];
+  const APP_ROOT_URL = (() => {
+    const appScript = Array.from(document.scripts || []).find((script) => /(?:^|\/)app\.js(?:[?#]|$)/i.test(script.src || ""));
+    try {
+      return new URL(".", appScript && appScript.src ? appScript.src : document.baseURI);
+    } catch (error) {
+      return new URL(".", document.baseURI);
+    }
+  })();
+
+  function resolveAssetUrl(path) {
+    return new URL(String(path || "").replace(/^\.\//, ""), APP_ROOT_URL).href;
+  }
+
+  function normalizeMediaCandidate(candidate) {
+    const value = String(candidate || "");
+    if (!value) {
+      return value;
+    }
+    if (/^(?:[a-z]+:|\/)/i.test(value)) {
+      return value;
+    }
+    return /[./\\]/.test(value) ? resolveAssetUrl(value) : value;
+  }
+
+  function mergeSoundNames(...groups) {
+    return [...new Set(groups.flat().filter(Boolean))];
+  }
 
   const SPRITE_SOURCE_ALIASES = {
     bucketIce: ["water_bucket", "snowball"],
@@ -546,15 +573,32 @@ const CUSTOM_ASSET_FOLDERS = [
     bookQuake: ["book_quake_1", "book_quake_2", "thunder_2", "thunder_3"],
   };
 
+  const ELEMENT_SOUND_VARIANTS = {
+    fire: ["burn_1", "burn_2", "ignite_1", "ignite_2", "fire", "flint_and_steel", "blaze_rod", "blaze_rod_1", "blaze_rod_2"],
+    lava: ["lava_burst_1", "lava_burst_2", "lava_sizzle_1", "lava_sizzle_2", "lava", "lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3"],
+    water: ["water_splash_1", "water_splash_2", "water_splash_3", "water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3"],
+    ice: ["ice_crack_1", "ice_crack_2", "ice_crack_3", "ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4"],
+    ender: ["ender_blink_1", "ender_blink_2", "ender_blink_3", "ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport", "respawn_anchor", "crying_obsidian_2"],
+    magic: ["magic_pop_1", "magic_pop_2", "magic_pop_3", "magic", "experience_bottle", "written_book", "invisibility", "gravity", "totem_of_undying"],
+    nature: ["nature_buzz_1", "nature_buzz_2", "nature_buzz_3", "nature", "beehive", "beehive_1", "beehive_2", "bone_meal", "bone_meal_1", "bone_meal_2"],
+    metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "hopper_minecart", "observer", "trident", "trident_1"],
+    wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "fishing_rod", "fishing_rod_1"],
+    slime: ["slime_splat_1", "slime_splat_2", "slime", "slime_1", "slime_2"],
+    explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor", "thunder_2"],
+  };
+
   const IMPACT_SOUND_ALIASES = {
-    fire: ["fire", "flint_and_steel", "lava_bucket"],
-    lava: ["lava", "lava_bucket"],
-    water: ["water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3"],
-    ice: ["ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4"],
-    ender: ["ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport"],
-    magic: ["magic", "experience_bottle", "written_book", "invisibility", "gravity"],
-    nature: ["nature", "beehive", "beehive_1", "beehive_2", "bone_meal", "bone_meal_1"],
-    metal: ["metal", "rail", "rail_1", "rail_2", "hopper_minecart", "observer"],
+    fire: mergeSoundNames(ELEMENT_SOUND_VARIANTS.fire, ["jack_o_lantern", "jack_o_lantern_1"]),
+    lava: mergeSoundNames(ELEMENT_SOUND_VARIANTS.lava, ELEMENT_SOUND_VARIANTS.fire),
+    water: mergeSoundNames(ELEMENT_SOUND_VARIANTS.water, ["boat_3", "boat_4"]),
+    ice: mergeSoundNames(ELEMENT_SOUND_VARIANTS.ice, ["turtle_scute"]),
+    ender: mergeSoundNames(ELEMENT_SOUND_VARIANTS.ender, ["shulker_box", "crying_obsidian", "crying_obsidian_1", "crying_obsidian_3"]),
+    magic: mergeSoundNames(ELEMENT_SOUND_VARIANTS.magic, ["book_laser_1", "book_lightning_1", "book_quake_1"]),
+    nature: mergeSoundNames(ELEMENT_SOUND_VARIANTS.nature, ["rotten_flesh", "rotten_flesh_1"], ELEMENT_SOUND_VARIANTS.slime),
+    metal: mergeSoundNames(ELEMENT_SOUND_VARIANTS.metal, ["observer_1", "observer_2", "observer_3"]),
+    wood: [...ELEMENT_SOUND_VARIANTS.wood],
+    slime: [...ELEMENT_SOUND_VARIANTS.slime],
+    explosion: [...ELEMENT_SOUND_VARIANTS.explosion],
     hit: [...SOUND_VARIANTS.hit],
   };
 
@@ -743,14 +787,14 @@ const CUSTOM_ASSET_FOLDERS = [
     return ZONE_TEXTURE_SPRITES[kind] || null;
   }
 
-function buildAssetCandidates(name, explicit = []) {
+    function buildAssetCandidates(name, explicit = []) {
       const generated = [];
       for (const folder of CUSTOM_ASSET_FOLDERS) {
         for (const ext of CUSTOM_ASSET_EXTENSIONS) {
-          generated.push(`${folder}/${name}${ext}`);
+          generated.push(resolveAssetUrl(`${folder}/${name}${ext}`));
         }
       }
-      return [...explicit, ...generated];
+      return [...explicit.map(normalizeMediaCandidate), ...generated];
     }
 
     function buildSpriteCandidates(name, explicit = []) {
@@ -763,10 +807,10 @@ function buildAssetCandidates(name, explicit = []) {
       const generated = [];
       for (const folder of CUSTOM_SOUND_FOLDERS) {
         for (const ext of CUSTOM_SOUND_EXTENSIONS) {
-          generated.push(`${folder}/${name}${ext}`);
+          generated.push(resolveAssetUrl(`${folder}/${name}${ext}`));
         }
       }
-      return [...explicit, ...generated];
+      return [...explicit.map(normalizeMediaCandidate), ...generated];
     }
 
     const AUDIO = {
@@ -1125,15 +1169,22 @@ function buildAssetCandidates(name, explicit = []) {
       },
       impact(type = "hit") {
         const lower = String(type || "hit").toLowerCase();
-        if (/lava|burn|fire|blaze|lantern-flash/.test(lower)) {
+        if (/explosion|blast|detonat|tnt|anchor-burst|overload/.test(lower)) {
+          this.playNamed("impact:explosion", IMPACT_SOUND_ALIASES.explosion, () => {
+            this.playNoise(0.12, 0.06);
+            this.playSweep(220, 78, 0.26, "sawtooth", 0.08);
+          }, { volume: 0.56, throttleMs: 75 });
+          return;
+        }
+        if (/lava|burn|fire|blaze|lantern-flash|ignite|ember|scorch|flame/.test(lower)) {
           this.lava();
           return;
         }
-        if (/water|storm|submerged|soak/.test(lower)) {
+        if (/water|storm|submerged|soak|splash|bubble|drench|flow/.test(lower)) {
           this.water();
           return;
         }
-        if (/ice|snow|freeze/.test(lower)) {
+        if (/ice|snow|freeze|frost|cold|blizzard/.test(lower)) {
           this.ice();
           return;
         }
@@ -1144,11 +1195,18 @@ function buildAssetCandidates(name, explicit = []) {
           }, { volume: 0.44, throttleMs: 55 });
           return;
         }
-        if (/poison|rotten|zombie|bee|honey|plants|slime/.test(lower)) {
+        if (/poison|rotten|zombie|bee|honey|plants|slime|mushroom|vine|root|spore/.test(lower)) {
           this.playNamed("impact:nature", IMPACT_SOUND_ALIASES.nature, () => {
             this.playTone(240, 0.08, "triangle", 0.06);
             this.playNoise(0.03, 0.02);
           }, { volume: 0.4, throttleMs: 60 });
+          return;
+        }
+        if (/wood|boat|plank|hook|rod/.test(lower)) {
+          this.playNamed("impact:wood", IMPACT_SOUND_ALIASES.wood, () => {
+            this.playTone(180, 0.05, "triangle", 0.05);
+            this.playNoise(0.025, 0.018);
+          }, { volume: 0.36, throttleMs: 45 });
           return;
         }
         if (/wagon|rail|trident|hook|piston|observer|skeleton-arrow|minecart/.test(lower)) {
@@ -1158,7 +1216,7 @@ function buildAssetCandidates(name, explicit = []) {
           }, { volume: 0.46, throttleMs: 45 });
           return;
         }
-        if (/totem|xp|book|light|gravity|overcharge|magic/.test(lower)) {
+        if (/totem|xp|book|light|gravity|overcharge|magic|heal|regen|bless|spell/.test(lower)) {
           this.playNamed("impact:magic", IMPACT_SOUND_ALIASES.magic, () => {
             this.playTone(698, 0.08, "sine", 0.05);
             this.playTone(932, 0.1, "triangle", 0.04);
