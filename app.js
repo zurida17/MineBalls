@@ -8370,56 +8370,25 @@ downloadBattleRecording() {
       const ctx = this.recordingCtx;
       const targetWidth = this.recordingCanvas.width;
       const targetHeight = this.recordingCanvas.height;
-      const contentSize = Math.min(targetWidth, targetHeight - 220);
-      const scale = contentSize / ARENA.width;
-      const topHeight = Math.round(HUD_TOP * scale);
-      const bottomHeight = Math.round(HUD_BOTTOM * scale);
-      const totalHeight = contentSize + topHeight + bottomHeight;
-      const offsetX = Math.round((targetWidth - contentSize) * 0.5);
-      const offsetY = Math.round((targetHeight - totalHeight) * 0.5);
+      const scale = targetWidth / WIDTH;
+      const drawHeight = Math.round(HEIGHT * scale);
+      const offsetX = 0;
+      const offsetY = 0;
 
       ctx.fillStyle = "#070b18";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      if (topHeight > 0) {
-        ctx.drawImage(
-          this.canvas,
-          0,
-          0,
-          WIDTH,
-          HUD_TOP,
-          offsetX,
-          offsetY,
-          contentSize,
-          topHeight
-        );
-      }
-
       ctx.drawImage(
         this.canvas,
-        ARENA.x,
-        ARENA.y,
-        ARENA.width,
-        ARENA.height,
+        0,
+        0,
+        WIDTH,
+        HEIGHT,
         offsetX,
-        offsetY + topHeight,
-        contentSize,
-        contentSize
+        offsetY,
+        targetWidth,
+        drawHeight
       );
-
-      if (bottomHeight > 0) {
-        ctx.drawImage(
-          this.canvas,
-          0,
-          HEIGHT - HUD_BOTTOM,
-          WIDTH,
-          HUD_BOTTOM,
-          offsetX,
-          offsetY + topHeight + contentSize,
-          contentSize,
-          bottomHeight
-        );
-      }
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
