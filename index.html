@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Арена шаров</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <canvas id="battleCanvas" width="900" height="900" aria-label="Арена боя"></canvas>
+
+    <div class="overlay visible" id="menuOverlay">
+      <div class="menu-panel">
+        <p class="menu-kicker">Автобой-песочница</p>
+        <h1>Арена шаров</h1>
+        <p class="menu-copy" id="menuCopy">
+          Выбери оружие для двух шаров и запусти бой.
+        </p>
+
+        <div class="selectors">
+          <section class="selector-group">
+            <div class="selector-head">
+              <div class="selector-ball selector-ball--left">100</div>
+              <h2>Зелёный шар</h2>
+            </div>
+            <button class="selected-weapon-card" id="leftSelectButton" type="button">
+              <span class="selected-weapon-badge selected-weapon-badge--left" id="leftWeaponBadge">RL</span>
+              <span class="selected-weapon-copy">
+                <strong id="leftWeaponTitle">Рельсы</strong>
+                <span id="leftWeaponCategory">Наследие</span>
+              </span>
+            </button>
+          </section>
+
+          <section class="selector-group">
+            <div class="selector-head">
+              <div class="selector-ball selector-ball--right">100</div>
+              <h2>Синий шар</h2>
+            </div>
+            <button class="selected-weapon-card" id="rightSelectButton" type="button">
+              <span class="selected-weapon-badge selected-weapon-badge--right" id="rightWeaponBadge">BT</span>
+              <span class="selected-weapon-copy">
+                <strong id="rightWeaponTitle">Лодка</strong>
+                <span id="rightWeaponCategory">Наследие</span>
+              </span>
+            </button>
+          </section>
+        </div>
+
+        <div class="menu-actions">
+          <button id="recordBattleButton" type="button" class="menu-secondary">Запись: выкл</button>
+          <button id="downloadBattleButton" type="button" class="menu-secondary">Скачать бой</button>
+          <button id="randomizeBothButton" type="button" class="menu-secondary">Случайно x2</button>
+          <button id="startBattleButton" type="button">В бой</button>
+        </div>
+
+        <section class="test-panel">
+          <div class="test-head">
+            <strong>Тестовый режим</strong>
+            <span id="testStatus">Круговой турнир и стресс-проверка багов.</span>
+          </div>
+          <div class="test-actions">
+            <button id="runTournamentButton" type="button" class="menu-secondary">Турнирная сетка</button>
+            <button id="runStressButton" type="button" class="menu-secondary">Стресс x1000</button>
+            <button id="runSet100Button" type="button" class="menu-secondary">Текущий сет x100</button>
+            <button id="downloadTournamentButton" type="button" class="menu-secondary" disabled>Скачать .txt</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="overlay catalog-overlay" id="catalogOverlay">
+      <div class="catalog-panel">
+        <div class="catalog-header">
+          <div>
+            <p class="menu-kicker">Каталог оружия</p>
+            <h2 id="catalogSideTitle">Выбор оружия</h2>
+          </div>
+          <div class="catalog-header-actions">
+            <button id="catalogRandomButton" type="button" class="menu-secondary">Случайно</button>
+            <button id="catalogCloseButton" type="button" class="menu-secondary">Закрыть</button>
+          </div>
+        </div>
+
+        <div class="catalog-toolbar">
+          <input id="catalogSearch" class="catalog-search" type="search" placeholder="Поиск оружия">
+        </div>
+
+        <div class="catalog-layout">
+          <div class="catalog-list" id="catalogList"></div>
+          <aside class="catalog-preview">
+            <div class="catalog-preview-badge" id="catalogPreviewBadge">RL</div>
+            <h3 id="catalogPreviewTitle">Рельсы</h3>
+            <p id="catalogPreviewCategory">Наследие</p>
+            <p id="catalogPreviewDescription">Прокладывает путь после ударов о стены и выпускает вагонетки.</p>
+            <button id="catalogSelectButton" type="button">Выбрать</button>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay tournament-overlay" id="tournamentOverlay">
+      <div class="tournament-panel">
+        <div class="tournament-head">
+          <div>
+            <p class="menu-kicker">Турнир на выбывание</p>
+            <h2>Турнирная сетка</h2>
+          </div>
+          <div class="tournament-head-actions">
+            <button id="tournamentRandomButton" type="button" class="menu-secondary">Рандом сетап</button>
+            <button id="tournamentCloseButton" type="button" class="menu-secondary">Закрыть</button>
+          </div>
+        </div>
+
+        <div class="tournament-controls">
+          <label for="tournamentCount">Участников:</label>
+          <select id="tournamentCount" class="tournament-select">
+            <option value="4">4</option>
+            <option value="8" selected>8</option>
+            <option value="16">16</option>
+            <option value="32">32</option>
+          </select>
+          <button id="tournamentApplyCountButton" type="button" class="menu-secondary">Применить</button>
+          <button id="tournamentStartButton" type="button">Старт турнира</button>
+        </div>
+
+        <div class="tournament-layout">
+          <div class="tournament-bracket-wrap">
+            <p id="tournamentStatus" class="tournament-status">Настрой участников и запусти турнир.</p>
+            <div id="tournamentBracket" class="tournament-bracket"></div>
+            <div id="tournamentParticipants" class="tournament-participant-list" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./weapons.config.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+[
+  {
+    "video": "C:\\Users\\Искандер\\Downloads\\ccF3HjgcxWFAEuUSUgkF+xyzMtWHio2E.mp4",
+    "name": "ccF3HjgcxWFAEuUSUgkF+xyzMtWHio2E",
+    "fps": 30.0,
+    "frame_count": 1292,
+    "duration_sec": 43.07,
+    "width": 360,
+    "height": 640,
+    "contact_sheet": "C:\\Users\\Искандер\\Desktop\\python)\\пупупу\\video_analysis\\ccF3HjgcxWFAEuUSUgkF+xyzMtWHio2E\\contact_sheet.png"
+  },
+  {
+    "video": "C:\\Users\\Искандер\\Downloads\\Fdqb0wyU0Aei271IsHP8+HrGX_wv4vPc.mp4",
+    "name": "Fdqb0wyU0Aei271IsHP8+HrGX_wv4vPc",
+    "fps": 30.0,
+    "frame_count": 1195,
+    "duration_sec": 39.83,
+    "width": 360,
+    "height": 640,
+    "contact_sheet": "C:\\Users\\Искандер\\Desktop\\python)\\пупупу\\video_analysis\\Fdqb0wyU0Aei271IsHP8+HrGX_wv4vPc\\contact_sheet.png"
+  },
+  {
+    "video": "C:\\Users\\Искандер\\Downloads\\xWjo8Pu4c84jKMsgGFU9+yXPJB5vQz4M.mp4",
+    "name": "xWjo8Pu4c84jKMsgGFU9+yXPJB5vQz4M",
+    "fps": 30.0,
+    "frame_count": 1324,
+    "duration_sec": 44.13,
+    "width": 360,
+    "height": 640,
+    "contact_sheet": "C:\\Users\\Искандер\\Desktop\\python)\\пупупу\\video_analysis\\xWjo8Pu4c84jKMsgGFU9+yXPJB5vQz4M\\contact_sheet.png"
+  }
+]
