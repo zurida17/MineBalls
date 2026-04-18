@@ -511,6 +511,29 @@ const CUSTOM_ASSET_FOLDERS = [
     quake: "zoneQuake",
   };
 
+  const ZONE_TILE_PATTERN_CACHE = new Map();
+  function getZonePattern(zoneTexture, tileSize) {
+    if (!zoneTexture) {
+      return null;
+    }
+    const cacheKey = `${zoneTexture.src}::${Math.round(tileSize)}`;
+    if (ZONE_TILE_PATTERN_CACHE.has(cacheKey)) {
+      return ZONE_TILE_PATTERN_CACHE.get(cacheKey);
+    }
+    const patternCanvas = document.createElement("canvas");
+    patternCanvas.width = tileSize;
+    patternCanvas.height = tileSize;
+    const patternCtx = patternCanvas.getContext("2d");
+    if (!patternCtx) {
+      return null;
+    }
+    patternCtx.imageSmoothingEnabled = false;
+    patternCtx.drawImage(zoneTexture, 0, 0, tileSize, tileSize);
+    const pattern = patternCtx.createPattern(patternCanvas, "repeat");
+    ZONE_TILE_PATTERN_CACHE.set(cacheKey, pattern);
+    return pattern;
+  }
+
   const SOUND_VARIANTS = {
     shoot: ["shoot", "shoot_1", "shoot_2", "shoot_3", "shoot_4"],
     hit: ["hit", "hit_1", "hit_2", "hit_3", "hit_4", "hit_5", "hit_6"],
@@ -2445,6 +2468,10 @@ if (id === "snowball") {
       }
       const radiusX = this.currentRadiusX;
       const radiusY = this.currentRadiusY;
+      const canvas = ctx.canvas;
+      if (this.position.x + radiusX < 0 || this.position.x - radiusX > canvas.width || this.position.y + radiusY < 0 || this.position.y - radiusY > canvas.height) {
+        return;
+      }
       const fiery = this.kind === "lava" || this.kind === "fire";
       const watery = this.kind === "ice" || this.kind === "water";
       const pulse = fiery ? 1 + Math.sin(this.phase * 2.6) * 0.08 : 1 + Math.sin(this.phase * 1.4) * 0.03;
@@ -2480,18 +2507,24 @@ if (id === "snowball") {
           : clamp(Math.min(radiusX, radiusY) * 0.28, 24, 42);
         const driftX = ((this.phase * (fiery ? 18 : watery ? 11 : 7)) % tileSize) - tileSize;
         const driftY = ((this.phase * (fiery ? 12 : watery ? 7 : 5)) % tileSize) - tileSize;
-        ctx.save();
-        ctx.beginPath();
-        ctx.ellipse(0, 0, radiusX * pulse, radiusY * pulse, 0, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.globalAlpha = fiery ? 0.16 + alpha * 0.18 : watery ? 0.16 + alpha * 0.16 : 0.14 + alpha * 0.14;
-        ctx.imageSmoothingEnabled = false;
-        for (let drawY = -radiusY * pulse + driftY; drawY < radiusY * pulse + tileSize; drawY += tileSize) {
-          for (let drawX = -radiusX * pulse + driftX; drawX < radiusX * pulse + tileSize; drawX += tileSize) {
-            ctx.drawImage(zoneTexture, drawX, drawY, tileSize, tileSize);
-          }
+        const pattern = getZonePattern(zoneTexture, tileSize);
+        if (pattern) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(0, 0, radiusX * pulse, radiusY * pulse, 0, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.globalAlpha = fiery ? 0.16 + alpha * 0.18 : watery ? 0.16 + alpha * 0.16 : 0.14 + alpha * 0.14;
+          ctx.imageSmoothingEnabled = false;
+          ctx.fillStyle = pattern;
+          ctx.translate(driftX, driftY);
+          ctx.fillRect(
+            -radiusX * pulse - tileSize,
+            -radiusY * pulse - tileSize,
+            (radiusX * pulse + tileSize) * 2,
+            (radiusY * pulse + tileSize) * 2,
+          );
+          ctx.restore();
         }
-        ctx.restore();
         ctx.imageSmoothingEnabled = prevSmoothing;
       }
 
