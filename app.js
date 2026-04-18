@@ -8371,12 +8371,30 @@ downloadBattleRecording() {
       const targetWidth = this.recordingCanvas.width;
       const targetHeight = this.recordingCanvas.height;
       const contentSize = Math.min(targetWidth, targetHeight - 220);
+      const scale = contentSize / ARENA.width;
+      const topHeight = Math.round(HUD_TOP * scale);
+      const bottomHeight = Math.round(HUD_BOTTOM * scale);
+      const totalHeight = contentSize + topHeight + bottomHeight;
       const offsetX = Math.round((targetWidth - contentSize) * 0.5);
-      const offsetY = Math.round((targetHeight - contentSize) * 0.5) + 90;
+      const offsetY = Math.round((targetHeight - totalHeight) * 0.5);
 
       ctx.fillStyle = "#070b18";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
-      this.drawRecordingHeader(ctx, 0, 0, targetWidth, 160);
+
+      if (topHeight > 0) {
+        ctx.drawImage(
+          this.canvas,
+          0,
+          0,
+          WIDTH,
+          HUD_TOP,
+          offsetX,
+          offsetY,
+          contentSize,
+          topHeight
+        );
+      }
+
       ctx.drawImage(
         this.canvas,
         ARENA.x,
@@ -8384,48 +8402,28 @@ downloadBattleRecording() {
         ARENA.width,
         ARENA.height,
         offsetX,
-        offsetY,
+        offsetY + topHeight,
         contentSize,
         contentSize
       );
+
+      if (bottomHeight > 0) {
+        ctx.drawImage(
+          this.canvas,
+          0,
+          HEIGHT - HUD_BOTTOM,
+          WIDTH,
+          HUD_BOTTOM,
+          offsetX,
+          offsetY + topHeight + contentSize,
+          contentSize,
+          bottomHeight
+        );
+      }
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
-      const leftFighter = this.fighters && this.fighters[0];
-      const rightFighter = this.fighters && this.fighters[1];
-      const leftWeaponId = leftFighter?.weaponId || this.selected?.left || "";
-      const rightWeaponId = rightFighter?.weaponId || this.selected?.right || "";
-      const leftMeta = leftFighter
-        ? { name: leftFighter.name, weaponId: leftFighter.weaponId, side: "left" }
-        : { name: this.getWeaponMeta(leftWeaponId)?.title || "LEFT", weaponId: leftWeaponId, side: "left" };
-      const rightMeta = rightFighter
-        ? { name: rightFighter.name, weaponId: rightFighter.weaponId, side: "right" }
-        : { name: this.getWeaponMeta(rightWeaponId)?.title || "RIGHT", weaponId: rightWeaponId, side: "right" };
-
-      ctx.save();
-      ctx.fillStyle = "rgba(5, 10, 22, 0.96)";
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 4, y + 4, width - 8, height - 8);
-
-      const iconY = y + Math.round(height * 0.5);
-      this.drawMiniIcon(ctx, leftMeta, 72, iconY);
-      this.drawMiniIcon(ctx, rightMeta, width - 72, iconY);
-
-      ctx.fillStyle = "#f9fbff";
-      ctx.font = "bold 34px Consolas, monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(leftMeta.name.toUpperCase(), 124, y + 56);
-
-      ctx.textAlign = "right";
-      ctx.fillText(rightMeta.name.toUpperCase(), width - 124, y + 56);
-
-      ctx.fillStyle = "rgba(255, 255, 255, 0.56)";
-      ctx.font = "bold 32px Consolas, monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("VS", width * 0.5, y + 56);
-      ctx.restore();
+      return; // no longer used; recording uses actual in-game HUD blocks instead
     }
 
     loadCustomBackground() {
