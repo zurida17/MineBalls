@@ -894,15 +894,45 @@ const CUSTOM_ASSET_FOLDERS = [
             return;
           }
           const source = queue.shift();
-          const audio = new Audio();
-          audio.preload = "auto";
-          audio.addEventListener("canplaythrough", () => {
-            loadedSamples.push(audio);
-            finalize();
-          }, { once: true });
-          audio.addEventListener("error", () => tryLoadName(name, queue), { once: true });
-          audio.src = source;
-          audio.load();
+          const loadWithElement = () => {
+            const audio = new Audio();
+            let done = false;
+            const resolveAudio = () => {
+              if (done) {
+                return;
+              }
+              done = true;
+              loadedSamples.push({ type: "element", element: audio });
+              finalize();
+            };
+            audio.preload = "auto";
+            audio.addEventListener("canplaythrough", resolveAudio, { once: true });
+            audio.addEventListener("loadeddata", resolveAudio, { once: true });
+            audio.addEventListener("error", () => tryLoadName(name, queue), { once: true });
+            audio.src = source;
+            audio.load();
+          };
+
+          if (this.ctx && typeof fetch === "function") {
+            fetch(source)
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}`);
+                }
+                return response.arrayBuffer();
+              })
+              .then((buffer) => this.ctx.decodeAudioData(buffer.slice(0)))
+              .then((decoded) => {
+                loadedSamples.push({ type: "buffer", buffer: decoded });
+                finalize();
+              })
+              .catch(() => {
+                loadWithElement();
+              });
+            return;
+          }
+
+          loadWithElement();
         };
         for (const name of names) {
           tryLoadName(name);
@@ -925,11 +955,25 @@ const CUSTOM_ASSET_FOLDERS = [
             }
           }
           this.lastSampleIndex.set(key, index);
-          const base = samples[index];
-          const instance = base.cloneNode();
           const pitchJitter = options.pitchJitter ?? 0;
           const playbackRate = options.playbackRate ?? 1;
           const jitteredPlayback = clamp(playbackRate * (pitchJitter ? randomRange(1 - pitchJitter, 1 + pitchJitter) : 1), 0.6, 1.7);
+          const base = samples[index];
+          if (base && base.type === "buffer" && base.buffer && this.ctx) {
+            const sourceNode = this.ctx.createBufferSource();
+            const gain = this.ctx.createGain();
+            sourceNode.buffer = base.buffer;
+            sourceNode.playbackRate.value = jitteredPlayback;
+            gain.gain.setValueAtTime(clamp(options.volume ?? 0.55, 0, 1), this.ctx.currentTime);
+            sourceNode.connect(gain);
+            gain.connect(this.ctx.destination);
+            if (this.recordingDestination) {
+              gain.connect(this.recordingDestination);
+            }
+            sourceNode.start();
+            return true;
+          }
+          const instance = (base && base.element ? base.element : base).cloneNode();
           instance.volume = clamp(options.volume ?? 0.55, 0, 1);
           instance.playbackRate = jitteredPlayback;
           instance.preservesPitch = false;
