@@ -8372,8 +8372,10 @@ downloadBattleRecording() {
       const targetHeight = this.recordingCanvas.height;
       const scale = targetWidth / WIDTH;
       const drawHeight = Math.round(HEIGHT * scale);
+      const arenaHeight = Math.round(ARENA.height * scale);
+      const arenaTop = Math.round(ARENA.y * scale);
       const offsetX = 0;
-      const offsetY = 0;
+      const offsetY = Math.round(targetHeight * 0.5 - (arenaTop + arenaHeight * 0.5));
 
       ctx.fillStyle = "#070b18";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
