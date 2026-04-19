@@ -3802,7 +3802,7 @@ if (id === "snowball") {
 
     setWeapon(weapon) {
       this.weapon = weapon;
-      this.baseMaxHp = Math.max(60, Math.round(100 * (Number.isFinite(weapon.hpMultiplier) ? weapon.hpMultiplier : 1) / 5) * 5);
+      this.baseMaxHp = Math.max(60, Math.round(100 * (Number.isFinite(weapon.hpMultiplier) ? weapon.hpMultiplier : 1)));
       this.maxHp = this.baseMaxHp;
       this.hp = this.maxHp;
       applyWeaponBalanceFrame(weapon);
