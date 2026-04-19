@@ -1439,6 +1439,25 @@ sprites/zones/water_still.png
           return false;
         }
       },
+      getSampleDuration(key, options = {}) {
+        const samples = this.sampleCache.get(key);
+        if (!samples || !samples.length) {
+          return 0;
+        }
+        const index = Math.min(this.lastSampleIndex.get(key) || 0, samples.length - 1);
+        const base = samples[index];
+        const playbackRate = options.playbackRate ?? 1;
+        const pitchJitter = options.pitchJitter ?? 0;
+        const safeRate = clamp(playbackRate * (pitchJitter ? 1 - pitchJitter : 1), 0.6, 1.7);
+        if (base && base.type === "buffer" && base.buffer && typeof base.buffer.duration === "number") {
+          return base.buffer.duration / safeRate;
+        }
+        const element = base && base.type === "element" && base.element ? base.element : base;
+        if (element && typeof element.duration === "number" && !Number.isNaN(element.duration) && element.duration > 0) {
+          return element.duration / safeRate;
+        }
+        return 0;
+      },
       playTone(freq, duration, type = "sine", volume = 0.15) {
         if (!this.ctx) {
           return;
@@ -4729,17 +4748,17 @@ if (id === "snowball") {
 
     drawOwnerAttachment(ctx, game) {
       const pos = this.owner.position;
-      if (game && game.drawSprite(ctx, "railAttachment", pos.x + 88, pos.y + 56, 164, 164)) {
+      if (game && game.drawSprite(ctx, "railAttachment", pos.x + 78, pos.y + 48, 120, 120)) {
         return;
       }
       ctx.save();
-      ctx.translate(pos.x + 88, pos.y + 56);
+      ctx.translate(pos.x + 78, pos.y + 48);
       ctx.fillStyle = "#86785a";
-      ctx.fillRect(-44, -26, 88, 52);
+      ctx.fillRect(-33, -20, 66, 40);
       ctx.fillStyle = "#d4d0c5";
-      ctx.fillRect(-32, -20, 64, 14);
+      ctx.fillRect(-24, -16, 48, 12);
       ctx.fillStyle = "#4e4f56";
-      ctx.fillRect(-44, 18, 88, 10);
+      ctx.fillRect(-33, 14, 66, 8);
       ctx.restore();
     }
 
@@ -10321,7 +10340,8 @@ URL.revokeObjectURL(link.href);
       this.triggerFlash(info.color || "#ffffff", 0.24);
       const alive = this.fighters.find((item) => item !== fighter && !item.dead) || null;
       this.result.winner = alive;
-      this.result.timer = 1.7;
+      const victoryDuration = AUDIO.getSampleDuration("victory", { pitchJitter: 0.02, playbackRate: 1 }) || 2.8;
+      this.result.timer = victoryDuration + 0.4;
       this.mode = MODES.RESULT;
       AUDIO.death();
       const win = this.fighters.find((f) => !f.dead);
@@ -10759,9 +10779,9 @@ URL.revokeObjectURL(link.href);
         ctx.save();
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffd978";
-        ctx.font = "bold 24px Consolas, monospace";
+        ctx.font = "bold 36px Consolas, monospace";
         const label = this.result.winner ? `${TEXT.winner}: ${this.result.winner.name}` : TEXT.draw;
-        ctx.fillText(label, WIDTH / 2, 82);
+        ctx.fillText(label, WIDTH / 2, 92);
         ctx.restore();
       }
 
@@ -10769,12 +10789,12 @@ URL.revokeObjectURL(link.href);
         ctx.save();
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffd978";
-        ctx.font = "bold 22px Consolas, monospace";
-        ctx.fillText(this.tournament.breakMessage || "Tournament break", WIDTH / 2, 82);
+        ctx.font = "bold 28px Consolas, monospace";
+        ctx.fillText(this.tournament.breakMessage || "Tournament break", WIDTH / 2, 84);
         this.drawTournamentBreakScene(ctx);
         ctx.fillStyle = "#dfe8ff";
-        ctx.font = "bold 17px Consolas, monospace";
-        ctx.fillText(`${this.tournamentBreakCountdownText()} ${Math.max(0, this.tournament.breakTimer).toFixed(1)}s`, WIDTH / 2, 124);
+        ctx.font = "bold 18px Consolas, monospace";
+        ctx.fillText(`${this.tournamentBreakCountdownText()} ${Math.max(0, this.tournament.breakTimer).toFixed(1)}s`, WIDTH / 2, 126);
         ctx.restore();
       }
     }
