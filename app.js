@@ -12,10 +12,10 @@
     height: 768,
   };
   const RECORDING_SIZE = {
-    width: 1440,
-    height: 2560,
+    width: 1080,
+    height: 1920,
   };
-  const RECORDING_FPS = 120;
+  const RECORDING_FPS = 60;
 
   // Положи пользовательские фоны в ./backgrounds/.
   // Положи пользовательские спрайты в ./sprites/.
@@ -8850,7 +8850,7 @@ startBattleRecording() {
       }
       this.recordingMime = this.getRecordingMimeType();
       this.recordedChunks = [];
-      const options = this.recordingMime ? { mimeType: this.recordingMime, videoBitsPerSecond: 2500000 } : { videoBitsPerSecond: 2500000 };
+      const options = this.recordingMime ? { mimeType: this.recordingMime, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 };
       this.recorder = new MediaRecorder(this.recordingStream, options);
       this.recorder.onerror = (e) => {
         console.error("MediaRecorder error:", e);
