@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="hull" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#b57b43"/>
+      <stop offset="1" stop-color="#6b4323"/>
+    </linearGradient>
+  </defs>
+  <path d="M7 38c4-8 14-14 25-14s21 6 25 14l-4 7c-7 5-15 8-21 8s-14-3-21-8Z" fill="url(#hull)" stroke="#4d2f18" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M14 38c5-5 11-8 18-8s13 3 18 8" fill="none" stroke="#d8ac73" stroke-width="3" stroke-linecap="round"/>
+  <path d="M46 20l7 4-8 5-3-2z" fill="#8b5e35"/>
+  <path d="M43 13c3 0 6 2 8 5l-5 2c-1-2-2-3-4-3z" fill="#f1e8d4" opacity=".85"/>
+  <ellipse cx="32" cy="47" rx="18" ry="5" fill="#f0d19c" opacity=".45"/>
+</svg>

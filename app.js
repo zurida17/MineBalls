@@ -468,6 +468,314 @@ const CUSTOM_ASSET_FOLDERS = [
     return /[./\\]/.test(value) ? resolveAssetUrl(value) : value;
   }
 
+  function normalizeRepoAssetPath(path) {
+    return String(path || "")
+      .replace(/\\/g, "/")
+      .replace(/^\.\//, "")
+      .replace(/^\/+/, "");
+  }
+
+  function parseAssetManifest(text) {
+    return String(text || "")
+      .split(/\r?\n/)
+      .map((line) => normalizeRepoAssetPath(line.trim()))
+      .filter(Boolean);
+  }
+
+  function buildAssetLookup(paths) {
+    const byName = new Map();
+    for (const rawPath of paths) {
+      const normalized = normalizeRepoAssetPath(rawPath);
+      const fileName = normalized.split("/").pop() || "";
+      const dotIndex = fileName.lastIndexOf(".");
+      const baseName = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+      if (!baseName) {
+        continue;
+      }
+      if (!byName.has(baseName)) {
+        byName.set(baseName, []);
+      }
+      byName.get(baseName).push(resolveAssetUrl(normalized));
+    }
+    return {
+      pathSet: new Set(paths.map((path) => normalizeRepoAssetPath(path))),
+      byName,
+    };
+  }
+
+  const KNOWN_SOUND_ASSETS = buildAssetLookup(parseAssetManifest(`
+sounds/effects/book_laser_1.ogg
+sounds/effects/book_laser_2.ogg
+sounds/effects/book_laser_3.ogg
+sounds/effects/book_lightning_1.ogg
+sounds/effects/book_lightning_2.ogg
+sounds/effects/book_lightning_3.ogg
+sounds/effects/book_quake_1.ogg
+sounds/effects/book_quake_2.ogg
+sounds/effects/burn_1.ogg
+sounds/effects/burn_2.ogg
+sounds/effects/charge.ogg
+sounds/effects/combo.ogg
+sounds/effects/ender_blink_1.ogg
+sounds/effects/ender_blink_2.ogg
+sounds/effects/ender_blink_3.ogg
+sounds/effects/fire.ogg
+sounds/effects/ice.ogg
+sounds/effects/ice_crack_1.ogg
+sounds/effects/ice_crack_2.ogg
+sounds/effects/ice_crack_3.ogg
+sounds/effects/ignite_1.ogg
+sounds/effects/ignite_2.ogg
+sounds/effects/lava.ogg
+sounds/effects/lava_burst_1.ogg
+sounds/effects/lava_burst_2.ogg
+sounds/effects/lava_sizzle_1.ogg
+sounds/effects/lava_sizzle_2.ogg
+sounds/effects/magic.ogg
+sounds/effects/magic_pop_1.ogg
+sounds/effects/magic_pop_2.ogg
+sounds/effects/magic_pop_3.ogg
+sounds/effects/metal.ogg
+sounds/effects/nature.ogg
+sounds/effects/nature_buzz_1.ogg
+sounds/effects/nature_buzz_2.ogg
+sounds/effects/nature_buzz_3.ogg
+sounds/effects/spawn.ogg
+sounds/effects/teleport.ogg
+sounds/effects/thunder_1.ogg
+sounds/effects/thunder_2.ogg
+sounds/effects/thunder_3.ogg
+sounds/effects/water.ogg
+sounds/effects/water_splash_1.ogg
+sounds/effects/water_splash_2.ogg
+sounds/effects/water_splash_3.ogg
+sounds/impact/ball_1.ogg
+sounds/impact/ball_2.ogg
+sounds/impact/ball_3.ogg
+sounds/impact/ball_4.ogg
+sounds/impact/explosion_1.ogg
+sounds/impact/explosion_2.ogg
+sounds/impact/explosion_3.ogg
+sounds/impact/hit.ogg
+sounds/impact/hit_1.ogg
+sounds/impact/hit_2.ogg
+sounds/impact/hit_3.ogg
+sounds/impact/hit_4.ogg
+sounds/impact/hit_5.ogg
+sounds/impact/hit_6.ogg
+sounds/impact/metal_clang_1.ogg
+sounds/impact/metal_clang_2.ogg
+sounds/impact/metal_clang_3.ogg
+sounds/impact/slime_splat_1.ogg
+sounds/impact/slime_splat_2.ogg
+sounds/impact/wall_1.ogg
+sounds/impact/wall_2.ogg
+sounds/impact/wall_3.ogg
+sounds/impact/wall_4.ogg
+sounds/impact/wall_5.ogg
+sounds/impact/wall_soft_1.ogg
+sounds/impact/wall_soft_2.ogg
+sounds/impact/wall_soft_3.ogg
+sounds/impact/wall_soft_4.ogg
+sounds/impact/wall_soft_5.ogg
+sounds/impact/wood_thud_1.ogg
+sounds/impact/wood_thud_2.ogg
+sounds/ui/click.ogg
+sounds/ui/countdown.ogg
+sounds/ui/death.ogg
+sounds/ui/round_start.ogg
+sounds/ui/select.ogg
+sounds/ui/start.ogg
+sounds/ui/victory.ogg
+sounds/weapons/beehive.ogg
+sounds/weapons/beehive_1.ogg
+sounds/weapons/beehive_2.ogg
+sounds/weapons/beehive_3.ogg
+sounds/weapons/beehive_4.ogg
+sounds/weapons/blaze_rod.ogg
+sounds/weapons/blaze_rod_1.ogg
+sounds/weapons/blaze_rod_2.ogg
+sounds/weapons/blaze_rod_3.ogg
+sounds/weapons/blaze_rod_4.ogg
+sounds/weapons/boat.ogg
+sounds/weapons/boat_1.ogg
+sounds/weapons/boat_2.ogg
+sounds/weapons/boat_3.ogg
+sounds/weapons/boat_4.ogg
+sounds/weapons/bone_meal.ogg
+sounds/weapons/bone_meal_1.ogg
+sounds/weapons/bone_meal_2.ogg
+sounds/weapons/bone_meal_3.ogg
+sounds/weapons/bone_meal_4.ogg
+sounds/weapons/crying_obsidian.ogg
+sounds/weapons/crying_obsidian_1.ogg
+sounds/weapons/crying_obsidian_2.ogg
+sounds/weapons/crying_obsidian_3.ogg
+sounds/weapons/elytra.ogg
+sounds/weapons/ender_pearl.ogg
+sounds/weapons/ender_pearl_1.ogg
+sounds/weapons/ender_pearl_2.ogg
+sounds/weapons/experience_bottle.ogg
+sounds/weapons/fishing_rod.ogg
+sounds/weapons/fishing_rod_1.ogg
+sounds/weapons/fishing_rod_2.ogg
+sounds/weapons/fishing_rod_3.ogg
+sounds/weapons/fishing_rod_4.ogg
+sounds/weapons/flint_and_steel.ogg
+sounds/weapons/golden_apple.ogg
+sounds/weapons/golden_apple_1.ogg
+sounds/weapons/golden_apple_2.ogg
+sounds/weapons/golden_apple_3.ogg
+sounds/weapons/gravity.ogg
+sounds/weapons/hopper_minecart.ogg
+sounds/weapons/invisibility.ogg
+sounds/weapons/invisibility_1.ogg
+sounds/weapons/invisibility_2.ogg
+sounds/weapons/invisibility_3.ogg
+sounds/weapons/invisibility_4.ogg
+sounds/weapons/jack_o_lantern.ogg
+sounds/weapons/jack_o_lantern_1.ogg
+sounds/weapons/jack_o_lantern_2.ogg
+sounds/weapons/lava_bucket.ogg
+sounds/weapons/lava_bucket_1.ogg
+sounds/weapons/lava_bucket_2.ogg
+sounds/weapons/lava_bucket_3.ogg
+sounds/weapons/note_block.ogg
+sounds/weapons/note_block_1.ogg
+sounds/weapons/note_block_2.ogg
+sounds/weapons/note_block_3.ogg
+sounds/weapons/note_block_4.ogg
+sounds/weapons/observer.ogg
+sounds/weapons/observer_1.ogg
+sounds/weapons/observer_2.ogg
+sounds/weapons/observer_3.ogg
+sounds/weapons/rail.ogg
+sounds/weapons/rail_1.ogg
+sounds/weapons/rail_2.ogg
+sounds/weapons/respawn_anchor.ogg
+sounds/weapons/rotten_flesh.ogg
+sounds/weapons/rotten_flesh_1.ogg
+sounds/weapons/rotten_flesh_2.ogg
+sounds/weapons/rotten_flesh_3.ogg
+sounds/weapons/shoot.ogg
+sounds/weapons/shoot_1.ogg
+sounds/weapons/shoot_2.ogg
+sounds/weapons/shoot_3.ogg
+sounds/weapons/shoot_4.ogg
+sounds/weapons/shulker_box.ogg
+sounds/weapons/slime.ogg
+sounds/weapons/slime_1.ogg
+sounds/weapons/slime_2.ogg
+sounds/weapons/snowball.ogg
+sounds/weapons/snowball_1.ogg
+sounds/weapons/snowball_2.ogg
+sounds/weapons/snowball_3.ogg
+sounds/weapons/snowball_4.ogg
+sounds/weapons/tnt.ogg
+sounds/weapons/totem_of_undying.ogg
+sounds/weapons/trident.ogg
+sounds/weapons/trident_1.ogg
+sounds/weapons/trident_2.ogg
+sounds/weapons/turtle_scute.ogg
+sounds/weapons/water_bucket.ogg
+sounds/weapons/water_bucket_1.ogg
+sounds/weapons/water_bucket_2.ogg
+sounds/weapons/water_bucket_3.ogg
+sounds/weapons/written_book.ogg
+sounds/weapons/written_book_1.ogg
+sounds/weapons/written_book_2.ogg
+sounds/weapons/written_book_3.ogg
+`));
+
+  const KNOWN_SPRITE_ASSETS = buildAssetLookup(parseAssetManifest(`
+sprites/hud/beehive_front.png
+sprites/hud/blaze_rod.png
+sprites/hud/bone_meal.png
+sprites/hud/crying_obsidian.png
+sprites/hud/elytra.png
+sprites/hud/ender_pearl.png
+sprites/hud/experience_bottle.png
+sprites/hud/fishing_rod.png
+sprites/hud/flint_and_steel.png
+sprites/hud/golden_apple.png
+sprites/hud/hopper_minecart.png
+sprites/hud/invisibility.png
+sprites/hud/jack_o_lantern.png
+sprites/hud/lava_bucket.png
+sprites/hud/note_block.png
+sprites/hud/potion.png
+sprites/hud/rail.png
+sprites/hud/respawn_anchor_top.png
+sprites/hud/rotten_flesh.png
+sprites/hud/shulker_box.png
+sprites/hud/snowball.png
+sprites/hud/totem_of_undying.png
+sprites/hud/trident.png
+sprites/hud/turtle_scute.png
+sprites/hud/water_bucket.png
+sprites/hud/written_book.png
+sprites/projectiles/book.png
+sprites/projectiles/ender_pearl.png
+sprites/projectiles/experience_bottle.png
+sprites/projectiles/fire_charge.png
+sprites/projectiles/shulker_shell.png
+sprites/projectiles/snowball.png
+sprites/projectiles/trident.png
+sprites/weapons/beehive_front.png
+sprites/weapons/blaze_rod.png
+sprites/weapons/bone_meal.png
+sprites/weapons/book.png
+sprites/weapons/crying_obsidian.png
+sprites/weapons/echo_shard.png
+sprites/weapons/elytra.png
+sprites/weapons/ender_pearl.png
+sprites/weapons/experience_bottle.png
+sprites/weapons/fire_charge.png
+sprites/weapons/fishing_rod.png
+sprites/weapons/flint_and_steel.png
+sprites/weapons/golden_apple.png
+sprites/weapons/hopper_minecart.png
+sprites/weapons/invisibility.png
+sprites/weapons/jack_o_lantern.png
+sprites/weapons/lava_bucket.png
+sprites/weapons/minecart.png
+sprites/weapons/note_block.png
+sprites/weapons/potion.png
+sprites/weapons/rail.png
+sprites/weapons/rail_attachment.png
+sprites/weapons/respawn_anchor_top.png
+sprites/weapons/rotten_flesh.png
+sprites/weapons/shulker_box.png
+sprites/weapons/shulker_shell.png
+sprites/weapons/skeleton_head.svg
+sprites/weapons/snowball.png
+sprites/weapons/totem_of_undying.png
+sprites/weapons/trident.png
+sprites/weapons/turtle_scute.png
+sprites/weapons/water_bucket.png
+sprites/weapons/written_book.png
+sprites/weapons/zombie_head.svg
+sprites/weapons/boat.svg
+sprites/zones/amethyst_block.png
+sprites/zones/cracked_stone_bricks.png
+sprites/zones/crying_obsidian.png
+sprites/zones/fire_0.png
+sprites/zones/flowering_azalea_top.png
+sprites/zones/glowstone.png
+sprites/zones/grass_block_top.png
+sprites/zones/honey_block_top.png
+sprites/zones/lava_still.png
+sprites/zones/nether_portal.png
+sprites/zones/obsidian.png
+sprites/zones/packed_ice.png
+sprites/zones/red_mushroom_block.png
+sprites/zones/respawn_anchor_top.png
+sprites/zones/sculk.png
+sprites/zones/slime_block.png
+sprites/zones/water_overlay.png
+sprites/zones/water_still.png
+`));
+
   function mergeSoundNames(...groups) {
     return [...new Set(groups.flat().filter(Boolean))];
   }
@@ -476,7 +784,9 @@ const CUSTOM_ASSET_FOLDERS = [
     bucketIce: ["water_bucket", "snowball"],
     bucketLava: ["lava_bucket", "fire_charge"],
     wagon: ["minecart", "hopper_minecart"],
+    boatHull: ["boat"],
     hudRail: ["rail"],
+    hudBoat: ["boat"],
     hudFishingRod: ["fishing_rod"],
     hudTrident: ["trident"],
     hudWaterBucket: ["water_bucket"],
@@ -584,7 +894,7 @@ const CUSTOM_ASSET_FOLDERS = [
     metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "rail_3", "hopper_minecart", "observer", "observer_1", "observer_2", "observer_3", "trident", "trident_1", "trident_2"],
     wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "boat_3", "boat_4", "fishing_rod", "fishing_rod_1", "fishing_rod_2", "fishing_rod_3", "fishing_rod_4"],
     slime: ["slime_splat_1", "slime_splat_2", "slime", "slime_1", "slime_2"],
-    explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor", "thunder_2"],
+    explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor"],
   };
 
   const IMPACT_SOUND_ALIASES = {
@@ -625,14 +935,22 @@ const CUSTOM_ASSET_FOLDERS = [
   };
 
   const WEAPON_SOUND_ALIASES = {
+    rail: ["rail", "rail_1", "rail_2"],
+    hopperMinecart: ["hopper_minecart", "rail_2", "rail_1", "rail"],
     pacifist: ["shoot", "shoot_1", "shoot_2", "shoot_3", "shoot_4"],
     fishingRod: ["fishing_rod", "fishing_rod_1", "fishing_rod_2", "fishing_rod_3", "fishing_rod_4"],
     loyaltyTrident: ["trident", "trident_1", "trident_2"],
     waterBucket: ["water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3"],
     lavaBucket: ["lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3"],
     snowball: ["snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4"],
+    slimePiston: ["slime", "slime_1", "slime_2", "slime_splat_1", "slime_splat_2"],
+    observer: ["observer", "observer_1", "observer_2", "observer_3"],
+    noteBlock: ["note_block", "note_block_1", "note_block_2", "note_block_3", "note_block_4"],
+    shulkerBox: ["shulker_box", "ender_blink_1", "ender_pearl"],
+    blazeRod: ["blaze_rod", "blaze_rod_1", "blaze_rod_2", "blaze_rod_3", "blaze_rod_4"],
     expBottle: ["experience_bottle"],
     enderPearl: ["ender_pearl", "ender_pearl_1", "ender_pearl_2"],
+    gravityPotion: ["gravity", "magic_pop_1", "magic_pop_2"],
   };
 
   const WEAPON_ATTACHMENT_SPRITES = {
@@ -776,18 +1094,30 @@ const CUSTOM_ASSET_FOLDERS = [
 
     function buildSpriteCandidates(name, explicit = []) {
       const aliases = SPRITE_SOURCE_ALIASES[name] || [];
-      const generatedAliases = aliases.flatMap((alias) => buildAssetCandidates(alias));
-      return [...explicit, ...generatedAliases, ...buildAssetCandidates(name)];
+      const explicitCandidates = explicit
+        .map((candidate) => normalizeMediaCandidate(candidate))
+        .filter((candidate) => {
+          if (/^(?:[a-z]+:|\/)/i.test(candidate)) {
+            return true;
+          }
+          return KNOWN_SPRITE_ASSETS.pathSet.has(normalizeRepoAssetPath(candidate));
+        });
+      const generatedAliases = aliases.flatMap((alias) => KNOWN_SPRITE_ASSETS.byName.get(alias) || []);
+      const direct = KNOWN_SPRITE_ASSETS.byName.get(name) || [];
+      return [...new Set([...explicitCandidates, ...generatedAliases, ...direct])];
     }
 
     function buildSoundCandidates(name, explicit = []) {
-      const generated = [];
-      for (const folder of CUSTOM_SOUND_FOLDERS) {
-        for (const ext of CUSTOM_SOUND_EXTENSIONS) {
-          generated.push(resolveAssetUrl(`${folder}/${name}${ext}`));
-        }
-      }
-      return [...explicit.map(normalizeMediaCandidate), ...generated];
+      const explicitCandidates = explicit
+        .map((candidate) => normalizeMediaCandidate(candidate))
+        .filter((candidate) => {
+          if (/^(?:[a-z]+:|\/)/i.test(candidate)) {
+            return true;
+          }
+          return KNOWN_SOUND_ASSETS.pathSet.has(normalizeRepoAssetPath(candidate));
+        });
+      const direct = KNOWN_SOUND_ASSETS.byName.get(name) || [];
+      return [...new Set([...explicitCandidates, ...direct])];
     }
 
     const AUDIO = {
@@ -1195,6 +1525,20 @@ const CUSTOM_ASSET_FOLDERS = [
             this.playNoise(0.12, 0.06);
             this.playSweep(220, 78, 0.26, "sawtooth", 0.08);
           }, { volume: 0.56, throttleMs: 75 });
+          return;
+        }
+        if (/observer/.test(lower)) {
+          this.playNamed("impact:observer", WEAPON_SOUND_ALIASES.observer, () => {
+            this.playTone(392, 0.08, "triangle", 0.06);
+            this.playTone(294, 0.06, "square", 0.04);
+          }, { volume: 0.42, throttleMs: 60 });
+          return;
+        }
+        if (/piston|slime-hit|slime-wall/.test(lower)) {
+          this.playNamed("impact:piston", WEAPON_SOUND_ALIASES.slimePiston, () => {
+            this.playTone(172, 0.08, "square", 0.06);
+            this.playNoise(0.025, 0.02);
+          }, { volume: 0.42, throttleMs: 55 });
           return;
         }
         if (/lava|burn|fire|blaze|lantern-flash|ignite|ember|scorch|flame/.test(lower)) {
@@ -5358,6 +5702,7 @@ this.ammo -= 1;
     weapon.gravityAnomalies = [];
     weapon.inAnomaly = false;
     weapon.autoFireTimer = 0;
+    weapon.shulkerChargeProgress = 0;
     weapon.mineTraps = [];
     weapon.maxStored = 9;
     weapon.expDamageBonusStacks = 0;
@@ -6067,6 +6412,15 @@ this.ammo -= 1;
       ctx.fillStyle = weapon.totemSpent ? "rgba(255,255,255,0.18)" : "#a8f4a0";
       ctx.fillRect(-10, -20, 20, 40);
       ctx.fillRect(-16, -6, 32, 8);
+    } else if (weapon.id === "gravityPotion") {
+      ctx.fillStyle = "#a9cbff";
+      ctx.beginPath();
+      ctx.arc(0, 2, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#dfeaff";
+      ctx.fillRect(-6, -22, 12, 10);
+      ctx.fillStyle = "#6288d8";
+      ctx.fillRect(-9, -4, 18, 10);
     } else {
       ctx.fillStyle = meta.color;
       ctx.beginPath();
@@ -6095,6 +6449,33 @@ this.ammo -= 1;
         ctx.fillRect(-16, -8, 32, 8);
         ctx.restore();
       }
+      ctx.save();
+      for (const funnel of weapon.funnels) {
+        const alpha = clamp(funnel.life / 5, 0.18, 0.72);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "rgba(240, 224, 182, 0.16)";
+        ctx.beginPath();
+        ctx.arc(funnel.position.x, funnel.position.y, funnel.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(246, 236, 204, 0.75)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(funnel.position.x, funnel.position.y, Math.max(12, funnel.radius * 0.72), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(201, 186, 146, 0.95)";
+        ctx.beginPath();
+        ctx.moveTo(funnel.position.x - 16, funnel.position.y - 12);
+        ctx.lineTo(funnel.position.x + 16, funnel.position.y - 12);
+        ctx.lineTo(funnel.position.x + 8, funnel.position.y + 10);
+        ctx.lineTo(funnel.position.x + 4, funnel.position.y + 22);
+        ctx.lineTo(funnel.position.x - 4, funnel.position.y + 22);
+        ctx.lineTo(funnel.position.x - 8, funnel.position.y + 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#75654a";
+        ctx.fillRect(funnel.position.x - 11, funnel.position.y - 18, 22, 6);
+      }
+      ctx.restore();
     } else if (weapon.id === "tnt") {
       for (const tnt of weapon.tnts) {
         if (!drawArenaSprite("tnt", tnt.position, 48, { alpha: tnt.wet ? 0.72 : 1 })) {
@@ -6110,14 +6491,23 @@ this.ammo -= 1;
     } else if (weapon.id === "slimePiston" && weapon.stateKey === "firing") {
       const dir = rotateVector(vec(1, 0), weapon.orientation);
       const end = add(weapon.owner.position, scale(dir, 160));
+      const mid = add(weapon.owner.position, scale(dir, 88));
       ctx.save();
-      ctx.strokeStyle = "rgba(135, 255, 162, 0.92)";
-      ctx.lineWidth = 18;
+      ctx.strokeStyle = "rgba(135, 255, 162, 0.65)";
+      ctx.lineWidth = 16;
       ctx.beginPath();
       ctx.moveTo(weapon.owner.position.x, weapon.owner.position.y);
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
+      ctx.strokeStyle = "rgba(92, 74, 54, 0.86)";
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(weapon.owner.position.x, weapon.owner.position.y);
+      ctx.lineTo(mid.x, mid.y);
+      ctx.stroke();
       ctx.restore();
+      drawProceduralWeaponSprite(ctx, "slimePiston", mid.x, mid.y, 60, 60, { rotation: weapon.orientation });
+      drawProceduralWeaponSprite(ctx, "slimePiston", end.x, end.y, 82, 82, { rotation: weapon.orientation });
     } else if (weapon.id === "observer") {
       ctx.save();
       ctx.globalAlpha = 0.12;
@@ -6127,7 +6517,9 @@ this.ammo -= 1;
       ctx.arc(weapon.owner.position.x, weapon.owner.position.y, 145, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
-      drawProceduralWeaponSprite(ctx, "observer", weapon.owner.position.x, weapon.owner.position.y - 56, 70, 70);
+      if (!drawArenaSprite("observer", add(weapon.owner.position, vec(0, -56)), 70)) {
+        drawProceduralWeaponSprite(ctx, "observer", weapon.owner.position.x, weapon.owner.position.y - 56, 70, 70);
+      }
     } else if (weapon.id === "beehive") {
       ctx.save();
       for (const bee of weapon.bees) {
@@ -6205,16 +6597,16 @@ this.ammo -= 1;
     } else if (weapon.id === "blazeRod") {
       ctx.save();
       for (const orb of weapon.orbs) {
-        const size = Math.max(20, orb.orbit ? orb.orbit * 0.28 : 20);
+        const size = Math.max(34, orb.orbit ? orb.orbit * 0.52 : 34);
         if (!drawArenaSprite("projectileFireball", orb.position, size)) {
           ctx.fillStyle = "#ffb567";
           ctx.beginPath();
-          ctx.arc(orb.position.x, orb.position.y, 10, 0, Math.PI * 2);
+          ctx.arc(orb.position.x, orb.position.y, 14, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = "#fff1c1";
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(orb.position.x, orb.position.y, 7, 0, Math.PI * 2);
+          ctx.arc(orb.position.x, orb.position.y, 10, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
@@ -6831,6 +7223,11 @@ this.ammo -= 1;
     }
 
     weapon.autoFireTimer -= dt;
+    weapon.shulkerChargeProgress += dt * (enemy ? 1.2 : 0.45);
+    while (weapon.shulkerChargeProgress >= 1) {
+      weapon.shulkerChargeProgress -= 1;
+      weapon.stored = Math.min(weapon.maxStored, weapon.stored + 1);
+    }
     for (const trap of weapon.traps) {
       trap.timer -= dt;
       if (trap.timer <= 0) {
@@ -6864,8 +7261,8 @@ this.ammo -= 1;
     }
     weapon.mineTraps = weapon.mineTraps.filter((mine) => mine.life > 0);
 
-    if (!weapon.owner.hasStatus("frozen") && !weapon.owner.hasStatus("silenced") && weapon.autoFireTimer <= 0 && weapon.stored >= 2 && enemy) {
-      if (weapon.stored >= 8 && weapon.stored >= 5) {
+    if (!weapon.owner.hasStatus("frozen") && !weapon.owner.hasStatus("silenced") && weapon.autoFireTimer <= 0 && weapon.stored >= 1 && enemy) {
+      if (weapon.stored >= 8) {
         const aim = aimAtEnemy(weapon.owner, enemy, 0.12);
         const start = add(weapon.owner.position, scale(aim, weapon.owner.ballRadius + 18));
         game.projectiles.push(new Projectile({
@@ -6918,7 +7315,7 @@ this.ammo -= 1;
           }));
         }
         weapon.stored -= 5;
-      } else {
+      } else if (weapon.stored >= 2) {
         const dir = aimAtEnemy(weapon.owner, enemy, 0.12);
         const start = add(weapon.owner.position, scale(dir, weapon.owner.ballRadius + 18));
         game.projectiles.push(new Projectile({
@@ -6943,6 +7340,15 @@ this.ammo -= 1;
           },
         }));
         weapon.stored -= 1;
+      } else {
+        const dir = aimAtEnemy(weapon.owner, enemy, 0.08);
+        const trapPos = keepPointInArena(add(enemy.position, scale(dir, -42)), 20);
+        weapon.traps.push({
+          position: trapPos,
+          timer: 1.2,
+        });
+        weapon.traps = weapon.traps.slice(-3);
+        weapon.stored = 0;
       }
       weapon.autoFireTimer = 1.2;
       previewWeaponFlash(weapon, "firing", 0.35);
@@ -7141,23 +7547,50 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
     weapon.orbs = weapon.orbs.filter((orb) => orb.life > 0);
 
     if (!weapon.owner.hasStatus("frozen") && !weapon.owner.hasStatus("silenced") && weapon.cooldown <= 0 && enemy) {
-      for (let index = 0; index < 2; index += 1) {
+      const base = aimAtEnemy(weapon.owner, enemy, 0.06, game);
+      for (let index = 0; index < 3; index += 1) {
+        const dir = rotateVector(base, (-0.16 + index * 0.16));
+        const start = add(weapon.owner.position, scale(dir, weapon.owner.ballRadius + 18));
+        game.projectiles.push(new Projectile({
+          kind: "fireball",
+          drawStyle: "fireball",
+          owner: weapon.owner,
+          position: start,
+          velocity: add(scale(dir, 310), scale(weapon.owner.velocity, 0.22)),
+          life: 1.35,
+          color: "#ffb567",
+          radius: 12,
+          onHit: (target, currentGame, shot) => {
+            target.takeDamage(8, {
+              game: currentGame,
+              type: "blaze-fireball",
+              hitFrom: shot.position,
+              knockback: 140,
+              color: "#ffbf6a",
+              sourceFighter: weapon.owner,
+            });
+            target.applyBurn(2.4, 2);
+            return true;
+          },
+        }));
+      }
+      for (let index = 0; index < 3; index += 1) {
         weapon.orbs.push({
-          angle: (Math.PI * 2 * index) / 2,
-          orbit: 64,
-          life: 1.6,
+          angle: (Math.PI * 2 * index) / 3,
+          orbit: 88,
+          life: 2.2,
           lastHitAt: -99,
           position: { ...weapon.owner.position },
         });
       }
-      weapon.cooldown = randomRange(4.2, 5);
+      weapon.cooldown = randomRange(4.4, 5.3);
       previewWeaponFlash(weapon, "firing", 0.35);
     }
 
     for (const orb of weapon.orbs) {
       orb.life -= dt;
-      orb.angle += dt * 5;
-      const focus = enemy ? pointOnSegment(weapon.owner.position, enemy.position, 0.18) : weapon.owner.position;
+      orb.angle += dt * 4.2;
+      const focus = enemy ? pointOnSegment(weapon.owner.position, enemy.position, 0.12) : weapon.owner.position;
       orb.position = add(focus, vec(Math.cos(orb.angle) * orb.orbit, Math.sin(orb.angle) * orb.orbit));
 
       if (enemy && !isCombatantDead(enemy) && distance(orb.position, enemy.position) <= enemy.ballRadius + 10 && game.time - orb.lastHitAt > 0.38) {
@@ -8293,17 +8726,13 @@ getRecordingMimeType() {
     }
 
 startBattleRecording() {
-      console.log("startBattleRecording:", { recordingSupported: this.recordingSupported, recordingEnabled: this.recordingEnabled, recordingActive: this.recordingActive, recordingStream: !!this.recordingStream });
       if (!this.recordingSupported || !this.recordingEnabled || this.recordingActive || !this.recordingStream) {
-        if (this.recordingSupported && !this.recordingEnabled) {
-          console.log("Запись выключена! Включите её перед боем.");
-        }
         return;
       }
       this.stopBattleRecording({ keepCurrent: false });
       this.recordingStream = this.createRecordingStream();
       if (!this.recordingStream) {
-        console.log("Не удалось создать поток записи.");
+        console.warn("Не удалось создать поток записи.");
         return;
       }
       this.recordingMime = this.getRecordingMimeType();
@@ -8319,9 +8748,8 @@ startBattleRecording() {
         }
       };
       this.recorder.onstop = () => {
-        console.log("recorder.onstop:", { recordedChunks: this.recordedChunks?.length, recordingMime: this.recordingMime });
         if (!this.recordedChunks.length) {
-          console.log("Нет записанных данных! Проверьте поддержку MediaRecorder.");
+          console.warn("Нет записанных данных MediaRecorder.");
           return;
         }
         if (this.recordingUrl) {
