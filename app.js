@@ -12,10 +12,10 @@
     height: 768,
   };
   const RECORDING_SIZE = {
-    width: 720,
-    height: 1280,
+    width: 1440,
+    height: 2560,
   };
-  const RECORDING_FPS = 60;
+  const RECORDING_FPS = 120;
 
   // Положи пользовательские фоны в ./backgrounds/.
   // Положи пользовательские спрайты в ./sprites/.
