@@ -9136,7 +9136,13 @@ function updatePreviewElytra(weapon, dt, enemy) {
 
     releaseRecordingStream() {
       if (this.recordingStream) {
+        const recordingDestinationTracks = new Set(
+          (AUDIO.recordingDestination?.stream?.getTracks() || []).filter((track) => track.kind === "audio")
+        );
         this.recordingStream.getTracks().forEach((track) => {
+          if (recordingDestinationTracks.has(track)) {
+            return;
+          }
           if (typeof track.stop === "function") {
             track.stop();
           }
