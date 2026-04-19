@@ -12,10 +12,12 @@
     height: 768,
   };
   const RECORDING_SIZE = {
-    width: 720,
-    height: 1280,
+    width: WIDTH,
+    height: HEIGHT,
   };
-  const RECORDING_FPS = 30; // Reduced from 60 to 30 for smoother recording
+  const RECORDING_FPS = 30;
+  const RECORDING_VIDEO_BITRATE = 8000000;
+  const RECORDING_AUDIO_BITRATE = 160000;
 
   // Положи пользовательские фоны в ./backgrounds/.
   // Положи пользовательские спрайты в ./sprites/.
@@ -8209,8 +8211,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCtx = null;
       this.recorder = null;
       this.recordedChunks = [];
+      this.recordingBlob = null;
       this.recordingUrl = "";
       this.recordingMime = "";
+      this.recordingExtension = "mp4";
+      this.recordingVideoTrack = null;
       this.recordingFrameInterval = 1 / RECORDING_FPS;
       this.recordingFrameAccumulator = 0;
 
@@ -8786,7 +8791,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
       this.recordingCtx = this.recordingCanvas.getContext("2d");
-      this.recordingStream = this.createRecordingStream();
       this.syncRecordingButtons();
     }
 
@@ -8794,7 +8798,19 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!this.recordingCanvas) {
         return null;
       }
-      const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+      const manualStream = this.recordingCanvas.captureStream(0);
+      const manualTrack = manualStream.getVideoTracks()[0] || null;
+      let videoStream = manualStream;
+      this.recordingVideoTrack = manualTrack;
+      if (!this.recordingVideoTrack || typeof this.recordingVideoTrack.requestFrame !== "function") {
+        manualStream.getTracks().forEach((track) => {
+          if (typeof track.stop === "function") {
+            track.stop();
+          }
+        });
+        videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+        this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
+      }
       const audioDestination = AUDIO.ensureRecordingDestination();
       if (audioDestination && audioDestination.stream) {
         const combined = new MediaStream();
@@ -8805,13 +8821,54 @@ function updatePreviewElytra(weapon, dt, enemy) {
       return videoStream;
     }
 
+    releaseRecordingStream() {
+      if (this.recordingStream) {
+        this.recordingStream.getTracks().forEach((track) => {
+          if (typeof track.stop === "function") {
+            track.stop();
+          }
+        });
+      }
+      this.recordingStream = null;
+      this.recordingVideoTrack = null;
+    }
+
+    getRecordingConfig() {
+      const candidates = [
+        { mimeType: "video/mp4;codecs=avc1.640028,mp4a.40.2", extension: "mp4" },
+        { mimeType: "video/mp4;codecs=avc1.4d4028,mp4a.40.2", extension: "mp4" },
+        { mimeType: "video/mp4;codecs=avc1.42E01E,mp4a.40.2", extension: "mp4" },
+        { mimeType: "video/mp4", extension: "mp4" },
+        { mimeType: "video/webm;codecs=vp9,opus", extension: "webm" },
+        { mimeType: "video/webm;codecs=vp8,opus", extension: "webm" },
+        { mimeType: "video/webm", extension: "webm" },
+      ];
+      if (typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function") {
+        for (const candidate of candidates) {
+          if (MediaRecorder.isTypeSupported(candidate.mimeType)) {
+            return candidate;
+          }
+        }
+      }
+      return { mimeType: "", extension: "webm" };
+    }
+
+    getRecordingExtension(mimeType) {
+      if (mimeType && mimeType.includes("mp4")) {
+        return "mp4";
+      }
+      return "webm";
+    }
+
 syncRecordingButtons() {
       if (!this.ui.recordBattleButton || !this.ui.downloadBattleButton) {
         return;
       }
       this.ui.recordBattleButton.textContent = this.recordingEnabled ? "Запись: вкл" : "Запись: выкл";
+      const formatLabel = (this.recordingExtension || "mp4").toUpperCase();
+      this.ui.recordBattleButton.textContent = this.recordingEnabled ? `Запись ${formatLabel}: вкл` : `Запись ${formatLabel}: выкл`;
+      this.ui.downloadBattleButton.textContent = `Скачать бой (.${this.recordingExtension || "mp4"})`;
       this.ui.downloadBattleButton.disabled = !this.recordingUrl;
-      console.log("syncRecordingButtons:", { recordingUrl: this.recordingUrl, recordingMime: this.recordingMime, recordedChunks: this.recordedChunks?.length });
     }
 
     toggleRecordingEnabled() {
@@ -8840,21 +8897,46 @@ getRecordingMimeType() {
     }
 
 startBattleRecording() {
-      if (!this.recordingSupported || !this.recordingEnabled || this.recordingActive || !this.recordingStream) {
+      if (!this.recordingSupported || !this.recordingEnabled || this.recordingActive) {
         return;
       }
+      AUDIO.init();
+      AUDIO.resume();
       this.stopBattleRecording({ keepCurrent: false });
+      this.releaseRecordingStream();
       this.recordingStream = this.createRecordingStream();
       if (!this.recordingStream) {
         console.warn("Не удалось создать поток записи.");
         return;
       }
-      this.recordingMime = this.getRecordingMimeType();
+      const recordingConfig = this.getRecordingConfig();
+      this.recordingMime = recordingConfig.mimeType;
+      this.recordingExtension = recordingConfig.extension;
       this.recordedChunks = [];
-      const options = this.recordingMime ? { mimeType: this.recordingMime, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 };
-      this.recorder = new MediaRecorder(this.recordingStream, options);
+      this.recordingBlob = null;
+      this.recordingFrameAccumulator = 0;
+      const options = {
+        videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
+        audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
+      };
+      if (this.recordingMime) {
+        options.mimeType = this.recordingMime;
+      }
+      try {
+        this.recorder = new MediaRecorder(this.recordingStream, options);
+      } catch (error) {
+        console.warn("Не удалось запустить запись с выбранным mimeType, включаю формат браузера по умолчанию.", error);
+        this.recordingMime = "";
+        this.recordingExtension = "webm";
+        this.recorder = new MediaRecorder(this.recordingStream, {
+          videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
+          audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
+        });
+      }
       this.recorder.onerror = (e) => {
         console.error("MediaRecorder error:", e);
+        this.recordingActive = false;
+        this.syncRecordingButtons();
       };
       this.recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -8871,11 +8953,18 @@ startBattleRecording() {
         }
         const mime = this.recordingMime || this.recordedChunks[0].type || "video/webm";
         const blob = new Blob(this.recordedChunks, { type: mime });
+        this.recordingBlob = blob;
+        this.recordingMime = blob.type || mime;
+        this.recordingExtension = this.getRecordingExtension(this.recordingMime);
         this.recordingUrl = URL.createObjectURL(blob);
+        this.releaseRecordingStream();
+        this.recorder = null;
         this.syncRecordingButtons();
       };
-      this.recorder.start(50);
+      this.renderRecordingFrame();
+      this.recorder.start(250);
       this.recordingActive = true;
+      this.syncRecordingButtons();
     }
 
     stopBattleRecording(options = {}) {
@@ -8884,8 +8973,13 @@ startBattleRecording() {
         URL.revokeObjectURL(this.recordingUrl);
         this.recordingUrl = "";
       }
+      if (!keepCurrent) {
+        this.recordingBlob = null;
+      }
       if (this.recorder && this.recorder.state !== "inactive") {
         this.recorder.stop();
+      } else if (!this.recordingActive) {
+        this.releaseRecordingStream();
       }
       this.recordingActive = false;
       this.syncRecordingButtons();
@@ -8896,7 +8990,7 @@ downloadBattleRecording() {
         return;
       }
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const ext = this.recordingMime && this.recordingMime.includes("mp4") ? "mp4" : "webm";
+      const ext = this.recordingExtension || this.getRecordingExtension(this.recordingMime);
       const link = document.createElement("a");
       link.href = this.recordingUrl;
       link.download = `battle-${stamp}.${ext}`;
@@ -8922,8 +9016,14 @@ downloadBattleRecording() {
 
       ctx.fillStyle = "#070b18";
       ctx.fillRect(0, 0, targetWidth, targetHeight);
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) {
+        ctx.imageSmoothingQuality = "high";
+      }
       ctx.drawImage(this.canvas, 0, 0, sourceWidth, sourceHeight, offsetX, offsetY, drawWidth, drawHeight);
+      if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+        this.recordingVideoTrack.requestFrame();
+      }
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
@@ -9045,11 +9145,12 @@ downloadBattleRecording() {
         this.createFighter("left", leftWeaponId, options.leftColor),
         this.createFighter("right", rightWeaponId, options.rightColor),
       ];
-      this.startBattleRecording();
       if (options.hideMenu !== false) {
         this.hideMenu();
       }
       AUDIO.init();
+      AUDIO.resume();
+      this.startBattleRecording();
       AUDIO.roundStart();
     }
 
@@ -9630,7 +9731,9 @@ URL.revokeObjectURL(link.href);
       this.lastFrame = timestamp;
       if (this.testRunning) {
         this.render();
-        this.renderRecordingFrame();
+        if (this.recordingActive) {
+          this.renderRecordingFrame();
+        }
         requestAnimationFrame((time) => this.frame(time));
         return;
       }
@@ -9638,8 +9741,8 @@ URL.revokeObjectURL(link.href);
       this.render();
       if (this.recordingActive) {
         this.recordingFrameAccumulator += dt;
-        while (this.recordingFrameAccumulator >= this.recordingFrameInterval) {
-          this.recordingFrameAccumulator -= this.recordingFrameInterval;
+        if (this.recordingFrameAccumulator >= this.recordingFrameInterval) {
+          this.recordingFrameAccumulator %= this.recordingFrameInterval;
           this.renderRecordingFrame();
         }
       }
@@ -10042,7 +10145,6 @@ URL.revokeObjectURL(link.href);
           ctx.fill();
         }
         ctx.restore();
-      }
     }
 
     drawColorCloud(ctx, x, y, radius, color) {
