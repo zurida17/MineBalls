@@ -1822,32 +1822,32 @@ if (id === "snowball") {
   ];
 
   const TEXT = {
-    title: "Арена шаров",
-    ready: "ГОТОВ",
-    fight: "В БОЙ",
-    winner: "ПОБЕДИТЕЛЬ",
-    draw: "НИЧЬЯ",
-    leftBall: "Левый шар",
-    rightBall: "Правый шар",
-    choose: "Выбери оружие для двух шаров и запусти бой.",
-    replay: "Выбери оружие для реванша и снова нажми «В бой».",
-    hpLeft: "Левый HP",
-    hpRight: "Правый HP",
+    title: "Ball Arena",
+    ready: "READY",
+    fight: "FIGHT",
+    winner: "WINNER",
+    draw: "DRAW",
+    leftBall: "Left Ball",
+    rightBall: "Right Ball",
+    choose: "Choose weapons for two balls and start the battle.",
+    replay: "Choose weapons for a rematch and press FIGHT again.",
+    hpLeft: "Left HP",
+    hpRight: "Right HP",
     names: {
-      rail: "Рельсы",
-      boat: "Лодка",
+      rail: "Rails",
+      boat: "Boat",
     },
     statuses: {
-      normal: "НОРМА",
-      laying: "ПРОКЛАДКА",
+      normal: "NORMAL",
+      laying: "BUILDING",
       charging: "CHARGING",
       firing: "FIRING",
-      frozen: "ЗАМОРОЖЕН",
+      frozen: "FROZEN",
       knockback: "KNOCKBACK",
-      dashing: "BOAT DASH",
+      dashing: "DASHING",
       hooked: "HOOKED",
       burning: "BURNING",
-      submerged: "WATERLOGGED",
+      submerged: "SUBMERGED",
       snagged: "SNAGGED",
       shocked: "SHOCKED",
       invisible: "INVISIBLE",
@@ -1855,14 +1855,14 @@ if (id === "snowball") {
       gliding: "GLIDING",
       spooked: "SPOOKED",
       marked: "MARKED",
-      tanking: "TURTLE",
+      tanking: "TANKING",
       anchored: "ANCHORED",
       levitating: "LEVITATING",
       overcharged: "OVERCHARGED",
       rooted: "ROOTED",
       poison: "POISON",
       regen: "REGEN",
-      shielded: "ЩИТ",
+      shielded: "SHIELDED",
       silenced: "DISRUPTED",
       foreseen: "FORESIGHT",
       dead: "DEAD",
@@ -1874,13 +1874,13 @@ if (id === "snowball") {
   const LEGACY_WEAPON_LIBRARY = {
     rail: {
       id: "rail",
-      title: "Рельсы",
-      description: "Прокладывает путь после ударов о стены и выпускает вагонетки.",
+      title: "Rails",
+      description: "Lays track after wall hits and launches minecarts.",
     },
     boat: {
       id: "boat",
-      title: "Лодка + Вёдра",
-      description: "Бронированный корпус с чередованием ледяных и лавовых вёдер.",
+      title: "Boat + Buckets",
+      description: "Armored hull with alternating ice and lava buckets.",
     },
   };
 
@@ -1945,12 +1945,12 @@ if (id === "snowball") {
     const derivedCooldownRateMultiplier = Math.min(1.32, Math.max(0.78, 1 + balanceBias * 0.5));
     const derivedMassMultiplier = Math.min(1.18, Math.max(0.82, 1 + balanceBias * 0.12));
     const derivedArmorMultiplier = Math.min(1.2, Math.max(0.8, 1 - balanceBias * 0.18));
-    const safeTitle = entry.title || entry.id || "Без названия";
+    const safeTitle = entry.title || entry.id || "Untitled";
     return {
       id: entry.id,
       title: safeTitle,
       description: entry.description || "",
-      category: entry.category || "Разное",
+      category: entry.category || "Miscellaneous",
       badge: entry.badge || safeTitle.slice(0, 2).toUpperCase(),
       color: entry.color || "#d7e5ff",
       speedMin,
@@ -1968,23 +1968,23 @@ if (id === "snowball") {
   const fallbackWeapons = [
     {
       id: "rail",
-      title: "Рельсы",
-      description: "Прокладывает путь после ударов о стены и выпускает вагонетки.",
+      title: "Rails",
+      description: "Lays track after wall hits and launches minecarts.",
       badge: "RL",
       color: "#f7d98d",
       speedMin: 236,
       speedMax: 286,
-      category: "Наследие",
+      category: "Legacy",
     },
     {
       id: "boat",
-      title: "Лодка",
-      description: "Бронированный корпус с чередованием ледяных и лавовых вёдер.",
+      title: "Boat",
+      description: "Armored hull with alternating ice and lava buckets.",
       badge: "BT",
       color: "#8fd6ff",
       speedMin: 196,
       speedMax: 236,
-      category: "Наследие",
+      category: "Legacy",
     },
   ];
 
@@ -3875,7 +3875,7 @@ if (id === "snowball") {
       this.shieldHp += scaledAmount;
       this.setStatus("shielded", 4.2);
       if (game) {
-        game.addFloatingText(`ЩИТ +${Math.round(scaledAmount)}`, add(this.position, vec(0, -42)), color);
+        game.addFloatingText(`SHIELD +${Math.round(scaledAmount)}`, add(this.position, vec(0, -42)), color);
       }
     }
     applyBurn(time, dps = 3) {
@@ -3904,7 +3904,7 @@ if (id === "snowball") {
         this.setStatus("anchored", 0.25);
         this.setStatus("exposed", 2.6);
         if (game) {
-          game.addFloatingText("ЛЁД", add(this.position, vec(0, -52)), "#d7f7ff");
+          game.addFloatingText("ICE", add(this.position, vec(0, -52)), "#d7f7ff");
           game.spawnShardBurst(this.position, "#e8fbff", 20);
         }
       }
@@ -8239,7 +8239,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
 
     getWeaponMeta(id) {
-      return WEAPON_LIBRARY[id] || LEGACY_WEAPON_LIBRARY[id] || { id, title: id, badge: "??", category: "Другое", color: "#dbe7ff", speedMin: 220, speedMax: 280 };
+      return WEAPON_LIBRARY[id] || LEGACY_WEAPON_LIBRARY[id] || { id, title: id, badge: "??", category: "Other", color: "#dbe7ff", speedMin: 220, speedMax: 280 };
     }
 
     buildCatalog() {
@@ -8299,7 +8299,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!grouped.size) {
         const empty = document.createElement("div");
         empty.className = "weapon-category-title";
-        empty.textContent = "Ничего не найдено";
+        empty.textContent = "Nothing found";
         container.appendChild(empty);
       }
       this.syncMenu();
@@ -8311,7 +8311,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.ui.catalogPreviewBadge.textContent = meta.badge || "??";
       this.ui.catalogPreviewBadge.style.background = `linear-gradient(180deg, ${meta.color || "#ffe899"}, #ffbf3f)`;
       this.ui.catalogPreviewTitle.textContent = meta.title;
-      this.ui.catalogPreviewCategory.textContent = meta.category || "База";
+      this.ui.catalogPreviewCategory.textContent = meta.category || "Base";
       this.ui.catalogPreviewDescription.textContent = meta.description || "";
       this.syncMenu();
     }
@@ -8320,7 +8320,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.catalogSide = side;
       this.catalogSearch = "";
       this.ui.catalogSearch.value = "";
-      this.ui.catalogSideTitle.textContent = side === "left" ? "Выбор для зелёного шара" : "Выбор для синего шара";
+      this.ui.catalogSideTitle.textContent = side === "left" ? "Selection for green ball" : "Selection for blue ball";
       this.buildCatalog();
       this.setCatalogPreview(this.selected[side]);
       this.ui.catalogOverlay.classList.add("visible");
@@ -8352,11 +8352,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       const right = this.getWeaponMeta(this.selected.right);
       this.ui.leftWeaponBadge.textContent = left.badge || "??";
       this.ui.leftWeaponTitle.textContent = left.title;
-      this.ui.leftWeaponCategory.textContent = left.category || "База";
+      this.ui.leftWeaponCategory.textContent = left.category || "Base";
       this.ui.leftWeaponBadge.style.background = `linear-gradient(180deg, ${left.color || "#7af58f"}, #2bbd49)`;
       this.ui.rightWeaponBadge.textContent = right.badge || "??";
       this.ui.rightWeaponTitle.textContent = right.title;
-      this.ui.rightWeaponCategory.textContent = right.category || "База";
+      this.ui.rightWeaponCategory.textContent = right.category || "Base";
       this.ui.rightWeaponBadge.style.background = `linear-gradient(180deg, ${right.color || "#9ce0ff"}, #3c87ff)`;
 
       const buttons = document.querySelectorAll(".weapon-option");
@@ -8367,15 +8367,15 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
     roundLabel(roundIndex, totalRounds, matchesInRound) {
       if (matchesInRound === 1) {
-        return "Финал";
+        return "Final";
       }
       if (matchesInRound === 2) {
-        return "Полуфинал";
+        return "Semifinal";
       }
       if (matchesInRound === 4) {
-        return "Четвертьфинал";
+        return "Quarterfinal";
       }
-      return `Раунд ${roundIndex + 1}/${totalRounds}`;
+      return `Round ${roundIndex + 1}/${totalRounds}`;
     }
 
     createTournamentDraft(count, randomize = false) {
@@ -8383,7 +8383,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
         const weapon = randomize ? this.pickRandomWeapon() : WEAPON_CATALOG[index % WEAPON_CATALOG.length].id;
         return {
           id: `p${index + 1}`,
-          label: `Участник ${index + 1}`,
+          label: `Participant ${index + 1}`,
           weaponId: weapon,
         };
       });
@@ -8398,7 +8398,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.createTournamentDraft(count, false);
       this.renderTournamentParticipants();
       this.renderTournamentBracket();
-      this.ui.tournamentStatus.textContent = `Настроено участников: ${count}.`;
+      this.ui.tournamentStatus.textContent = `Configured participants: ${count}.`;
     }
 
     randomizeTournamentDraft() {
@@ -8571,7 +8571,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       const center = document.createElement("section");
       center.className = "tournament-final";
       const finalHeader = document.createElement("h4");
-      finalHeader.textContent = "Финал";
+      finalHeader.textContent = "Final";
       center.appendChild(finalHeader);
       const finalMatch = tournament.rounds[tournament.rounds.length - 1][0];
       const finalCard = document.createElement("div");
@@ -8618,7 +8618,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.renderTournamentParticipants();
       this.renderTournamentBracket();
       if (!this.tournament || !this.tournament.active) {
-        this.ui.tournamentStatus.textContent = "Настрой участников и запусти турнир.";
+        this.ui.tournamentStatus.textContent = "Set up participants and start the tournament.";
       }
       this.ui.tournamentOverlay.classList.add("visible");
     }
@@ -8645,18 +8645,18 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.selected.right = rightEntry.weaponId;
       this.syncMenu();
       this.renderTournamentBracket();
-      this.ui.testStatus.textContent = `Турнир: ${leftEntry.label} (${this.getWeaponMeta(leftEntry.weaponId).title}) vs ${rightEntry.label} (${this.getWeaponMeta(rightEntry.weaponId).title})`;
+      this.ui.testStatus.textContent = `Tournament: ${leftEntry.label} (${this.getWeaponMeta(leftEntry.weaponId).title}) vs ${rightEntry.label} (${this.getWeaponMeta(rightEntry.weaponId).title})`;
       this.setupBattle(leftEntry.weaponId, rightEntry.weaponId, { countdown: true, hideMenu: true });
     }
 
     startBracketTournament() {
       if (![4, 8, 16, 32].includes(this.tournamentDraft.length)) {
-        this.ui.tournamentStatus.textContent = "Количество участников должно быть 4, 8, 16 или 32.";
+        this.ui.tournamentStatus.textContent = "Number of participants must be 4, 8, 16 or 32.";
         return;
       }
       this.tournament = this.buildTournamentState();
       this.renderTournamentBracket();
-      this.ui.tournamentStatus.textContent = "Турнир запущен.";
+      this.ui.tournamentStatus.textContent = "Tournament started.";
       this.closeTournamentOverlay();
       this.hideMenu();
       this.startNextTournamentBattle();
@@ -8699,9 +8699,9 @@ function updatePreviewElytra(weapon, dt, enemy) {
         const nextRight = this.tournament.entrantsById[next.match.rightId];
         const nextLeftWeapon = this.getWeaponMeta(nextLeft.weaponId).title;
         const nextRightWeapon = this.getWeaponMeta(nextRight.weaponId).title;
-        this.tournament.breakMessage = `Победил ${winnerWeapon.title}. ${loserWeapon.title} выбывает. Далее: ${nextLeftWeapon} vs ${nextRightWeapon}.`;
+        this.tournament.breakMessage = `${winnerWeapon.title} won. ${loserWeapon.title} is eliminated. Next: ${nextLeftWeapon} vs ${nextRightWeapon}.`;
       } else {
-        this.tournament.breakMessage = `Победил ${winnerWeapon.title}. ${loserWeapon.title} выбывает.`;
+        this.tournament.breakMessage = `${winnerWeapon.title} won. ${loserWeapon.title} is eliminated.`;
       }
       this.ui.tournamentStatus.textContent = this.tournament.breakMessage;
       this.tournament.currentBattle = null;
@@ -8713,11 +8713,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
         return;
       }
       const champion = this.tournament.championId ? this.tournament.entrantsById[this.tournament.championId] : null;
-      const championTitle = champion ? this.getWeaponMeta(champion.weaponId).title : "не определён";
-      this.ui.tournamentStatus.textContent = `Турнир завершён. Победитель: ${championTitle}.`;
+      const championTitle = champion ? this.getWeaponMeta(champion.weaponId).title : "unknown";
+      this.ui.tournamentStatus.textContent = `Tournament complete. Winner: ${championTitle}.`;
       this.tournament.active = false;
       this.mode = MODES.MENU;
-      this.showMenu(`Турнир завершён. Победитель: ${championTitle}.`);
+      this.showMenu(`Tournament complete. Winner: ${championTitle}.`);
       this.openTournamentOverlay();
     }
 
@@ -8784,7 +8784,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
         return;
       }
       if (!this.recordingSupported) {
-        this.ui.recordBattleButton.textContent = "Запись недоступна";
+        this.ui.recordBattleButton.textContent = "Recording unavailable";
         this.ui.recordBattleButton.disabled = true;
         this.ui.downloadBattleButton.disabled = true;
         return;
@@ -8800,19 +8800,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!this.recordingCanvas) {
         return null;
       }
-      const manualStream = this.recordingCanvas.captureStream(0);
-      const manualTrack = manualStream.getVideoTracks()[0] || null;
-      let videoStream = manualStream;
-      this.recordingVideoTrack = manualTrack;
-      if (!this.recordingVideoTrack || typeof this.recordingVideoTrack.requestFrame !== "function") {
-        manualStream.getTracks().forEach((track) => {
-          if (typeof track.stop === "function") {
-            track.stop();
-          }
-        });
-        videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
-        this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
-      }
+      const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+      this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
       const audioDestination = AUDIO.ensureRecordingDestination();
       if (audioDestination && audioDestination.stream) {
         const combined = new MediaStream();
@@ -8862,14 +8851,15 @@ function updatePreviewElytra(weapon, dt, enemy) {
       return "webm";
     }
 
-syncRecordingButtons() {
+    syncRecordingButtons() {
       if (!this.ui.recordBattleButton || !this.ui.downloadBattleButton) {
         return;
       }
-      this.ui.recordBattleButton.textContent = this.recordingEnabled ? "Запись: вкл" : "Запись: выкл";
       const formatLabel = (this.recordingExtension || "mp4").toUpperCase();
-      this.ui.recordBattleButton.textContent = this.recordingEnabled ? `Запись ${formatLabel}: вкл` : `Запись ${formatLabel}: выкл`;
-      this.ui.downloadBattleButton.textContent = `Скачать бой (.${this.recordingExtension || "mp4"})`;
+      this.ui.recordBattleButton.textContent = this.recordingEnabled
+        ? `Recording ${formatLabel}: ON`
+        : `Recording ${formatLabel}: OFF`;
+      this.ui.downloadBattleButton.textContent = `Download battle (.${this.recordingExtension || "mp4"})`;
       this.ui.downloadBattleButton.disabled = !this.recordingUrl;
     }
 
@@ -8884,7 +8874,7 @@ syncRecordingButtons() {
       this.syncRecordingButtons();
     }
 
-getRecordingMimeType() {
+    getRecordingMimeType() {
       const candidates = [
         "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
         "video/webm;codecs=vp8,opus",
@@ -8908,7 +8898,7 @@ startBattleRecording() {
       this.releaseRecordingStream();
       this.recordingStream = this.createRecordingStream();
       if (!this.recordingStream) {
-        console.warn("Не удалось создать поток записи.");
+        console.warn("Failed to create recording stream.");
         return;
       }
       const recordingConfig = this.getRecordingConfig();
@@ -8927,7 +8917,7 @@ startBattleRecording() {
       try {
         this.recorder = new MediaRecorder(this.recordingStream, options);
       } catch (error) {
-        console.warn("Не удалось запустить запись с выбранным mimeType, включаю формат браузера по умолчанию.", error);
+        console.warn("Failed to start recording with selected mimeType, switching to browser default.", error);
         this.recordingMime = "";
         this.recordingExtension = "webm";
         this.recorder = new MediaRecorder(this.recordingStream, {
@@ -8947,7 +8937,7 @@ startBattleRecording() {
       };
       this.recorder.onstop = () => {
         if (!this.recordedChunks.length) {
-          console.warn("Нет записанных данных MediaRecorder.");
+          console.warn("No MediaRecorder data was recorded.");
           return;
         }
         if (this.recordingUrl) {
@@ -9392,7 +9382,7 @@ downloadBattleRecording() {
           durationSec: this.roundTime || 0,
           leftHp: 0,
           rightHp: 0,
-          issues: [`АВАРИЯ: ${error && error.message ? error.message : String(error)}`],
+          issues: [`CRASH: ${error && error.message ? error.message : String(error)}`],
           peaks: {
             projectiles: this.projectiles.length,
             zones: this.zones.length,
@@ -9412,12 +9402,12 @@ downloadBattleRecording() {
       this.ui.runSet100Button.disabled = true;
       this.ui.downloadTournamentButton.disabled = true;
       this.closeCatalog();
-      this.ui.testStatus.textContent = "Турнир запущен...";
+      this.ui.testStatus.textContent = "Tournament running...";
 
       const previousSelected = { ...this.selected };
       const lines = [
-        `Дата турнира: ${new Date().toISOString()}`,
-        `Оружия: ${WEAPON_CATALOG.length}`,
+        `Tournament date: ${new Date().toISOString()}`,
+        `Weapons: ${WEAPON_CATALOG.length}`,
         "",
       ];
       const score = new Map();
@@ -9457,22 +9447,22 @@ downloadBattleRecording() {
             rightScore.draws += 1;
           }
 
-          lines.push(`${leftWeapon.title} vs ${rightWeapon.title} -> ${result.winnerSide === "draw" ? "ничья" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Пики P:${result.peaks.projectiles} Z:${result.peaks.zones}${result.issues.length ? ` | Ошибки:${result.issues.length}` : ""}`);
+          lines.push(`${leftWeapon.title} vs ${rightWeapon.title} -> ${result.winnerSide === "draw" ? "draw" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Peaks P:${result.peaks.projectiles} Z:${result.peaks.zones}${result.issues.length ? ` | Errors:${result.issues.length}` : ""}`);
           for (const issue of result.issues.slice(0, 4)) {
-            lines.push(`  БАГ: ${issue}`);
+            lines.push(`  BUG: ${issue}`);
           }
           completed += 1;
           if (completed % 8 === 0) {
-            this.ui.testStatus.textContent = `Турнир: ${completed}/${total}`;
+            this.ui.testStatus.textContent = `Tournament: ${completed}/${total}`;
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
       }
 
       lines.push("");
-      lines.push(`Матчей с ошибками: ${issueMatches}`);
+      lines.push(`Matches with issues: ${issueMatches}`);
       lines.push("");
-      lines.push("Таблица:");
+      lines.push("Table:");
       const ranking = [...score.entries()]
         .sort((a, b) => {
           const left = a[1];
@@ -9481,7 +9471,7 @@ downloadBattleRecording() {
         });
       ranking.forEach(([weaponId, stats], index) => {
         const meta = this.getWeaponMeta(weaponId);
-        lines.push(`${index + 1}. ${meta.title} | П:${stats.wins} Н:${stats.draws} Пор:${stats.losses} | HP:${stats.hpFor}-${stats.hpAgainst} | Ошибки:${stats.issues}`);
+        lines.push(`${index + 1}. ${meta.title} | W:${stats.wins} D:${stats.draws} L:${stats.losses} | HP:${stats.hpFor}-${stats.hpAgainst} | Errors:${stats.issues}`);
       });
 
       this.testReport = lines.join("\n");
@@ -9490,7 +9480,7 @@ downloadBattleRecording() {
       this.mode = MODES.MENU;
       this.showMenu(TEXT.choose);
       this.syncMenu();
-      this.ui.testStatus.textContent = `Турнир завершён. Матчей: ${completed}.`;
+      this.ui.testStatus.textContent = `Tournament complete. Matches: ${completed}.`;
       this.ui.downloadTournamentButton.disabled = false;
       this.ui.runTournamentButton.disabled = false;
       this.ui.runStressButton.disabled = false;
@@ -9505,12 +9495,12 @@ downloadBattleRecording() {
       this.ui.runSet100Button.disabled = true;
       this.ui.downloadTournamentButton.disabled = true;
       this.closeCatalog();
-      this.ui.testStatus.textContent = "Стресс x1000 запущен...";
+      this.ui.testStatus.textContent = "Stress test x1000 started...";
 
       const previousSelected = { ...this.selected };
       const lines = [
-        `Дата стресс-теста: ${new Date().toISOString()}`,
-        "Матчей: 1000",
+        `Stress test date: ${new Date().toISOString()}`,
+        "Matches: 1000",
         "",
       ];
       const stats = new Map();
@@ -9558,23 +9548,23 @@ downloadBattleRecording() {
 
         const leftMeta = this.getWeaponMeta(leftWeaponId);
         const rightMeta = this.getWeaponMeta(rightWeaponId);
-        lines.push(`${index + 1}. ${leftMeta.title} vs ${rightMeta.title} -> ${result.winnerSide === "draw" ? "ничья" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Пики P:${result.peaks.projectiles} Z:${result.peaks.zones}${result.timedOut ? " | ТАЙМАУТ" : ""}${result.issues.length ? ` | Ошибки:${result.issues.length}` : ""}`);
+        lines.push(`${index + 1}. ${leftMeta.title} vs ${rightMeta.title} -> ${result.winnerSide === "draw" ? "draw" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Peaks P:${result.peaks.projectiles} Z:${result.peaks.zones}${result.timedOut ? " | TIMEOUT" : ""}${result.issues.length ? ` | Errors:${result.issues.length}` : ""}`);
         for (const issue of result.issues.slice(0, 6)) {
-          lines.push(`  БАГ: ${issue}`);
+          lines.push(`  BUG: ${issue}`);
         }
 
         if ((index + 1) % 10 === 0) {
-          this.ui.testStatus.textContent = `Стресс x1000: ${index + 1}/1000`;
+          this.ui.testStatus.textContent = `Stress x1000: ${index + 1}/1000`;
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
 
       lines.push("");
-      lines.push(`Матчей с ошибками: ${issueMatches}`);
-      lines.push(`Всего ошибок: ${totalIssues}`);
-      lines.push(`Таймаутов: ${timeouts}`);
+      lines.push(`Matches with errors: ${issueMatches}`);
+      lines.push(`Total errors: ${totalIssues}`);
+      lines.push(`Timeouts: ${timeouts}`);
       lines.push("");
-      lines.push("Таблица стресс-теста:");
+      lines.push("Stress test table:");
 
       const ranking = [...stats.entries()]
         .sort((a, b) => {
@@ -9587,7 +9577,7 @@ downloadBattleRecording() {
       ranking.forEach(([weaponId, value], index) => {
         const meta = this.getWeaponMeta(weaponId);
         const winRate = value.picks ? ((value.wins / value.picks) * 100).toFixed(1) : "0.0";
-        lines.push(`${index + 1}. ${meta.title} | Пики:${value.picks} П:${value.wins} Н:${value.draws} Пор:${value.losses} | Винрейт:${winRate}% | Ошибки:${value.issues}`);
+        lines.push(`${index + 1}. ${meta.title} | Picks:${value.picks} W:${value.wins} D:${value.draws} L:${value.losses} | Winrate:${winRate}% | Errors:${value.issues}`);
       });
 
       this.testReport = lines.join("\n");
@@ -9596,7 +9586,7 @@ downloadBattleRecording() {
       this.mode = MODES.MENU;
       this.showMenu(TEXT.choose);
       this.syncMenu();
-      this.ui.testStatus.textContent = `Стресс x1000 завершён. Ошибок: ${totalIssues}, таймаутов: ${timeouts}.`;
+      this.ui.testStatus.textContent = `Stress x1000 completed. Errors: ${totalIssues}, timeouts: ${timeouts}.`;
       this.ui.downloadTournamentButton.disabled = false;
       this.ui.runTournamentButton.disabled = false;
       this.ui.runStressButton.disabled = false;
@@ -9611,7 +9601,7 @@ downloadBattleRecording() {
       this.ui.runSet100Button.disabled = true;
       this.ui.downloadTournamentButton.disabled = true;
       this.closeCatalog();
-      this.ui.testStatus.textContent = "Текущий сет x100 запущен...";
+      this.ui.testStatus.textContent = "Current set x100 started...";
 
       const previousSelected = { ...this.selected };
       const leftWeaponId = previousSelected.left;
@@ -9629,9 +9619,9 @@ downloadBattleRecording() {
       let timeouts = 0;
 
       const lines = [
-        `Дата текущего сета: ${new Date().toISOString()}`,
-        `Сет: ${leftMeta.title} vs ${rightMeta.title}`,
-        `Матчей: ${totalRuns}`,
+        `Current set date: ${new Date().toISOString()}`,
+        `Set: ${leftMeta.title} vs ${rightMeta.title}`,
+        `Matches: ${totalRuns}`,
         "",
       ];
 
@@ -9658,9 +9648,9 @@ downloadBattleRecording() {
           timeouts += 1;
         }
 
-        lines.push(`${index + 1}. ${leftMeta.title} vs ${rightMeta.title} -> ${result.winnerSide === "draw" ? "ничья" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Длительность ${durationSec.toFixed(2)}с${result.timedOut ? " | ТАЙМАУТ" : ""}`);
+        lines.push(`${index + 1}. ${leftMeta.title} vs ${rightMeta.title} -> ${result.winnerSide === "draw" ? "draw" : result.winnerWeaponId} | HP ${result.leftHp}:${result.rightHp} | Duration ${durationSec.toFixed(2)}s${result.timedOut ? " | TIMEOUT" : ""}`);
         if ((index + 1) % 10 === 0) {
-          this.ui.testStatus.textContent = `Текущий сет x100: ${index + 1}/${totalRuns}`;
+          this.ui.testStatus.textContent = `Current set x100: ${index + 1}/${totalRuns}`;
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
@@ -9671,14 +9661,14 @@ downloadBattleRecording() {
       const p90Duration = sorted[Math.floor(sorted.length * 0.9)];
 
       lines.push("");
-      lines.push(`Средняя длительность: ${avgDuration.toFixed(2)}с`);
-      lines.push(`Медиана: ${medianDuration.toFixed(2)}с`);
-      lines.push(`P90: ${p90Duration.toFixed(2)}с`);
-      lines.push(`Мин/Макс: ${minDuration.toFixed(2)}с / ${maxDuration.toFixed(2)}с`);
-      lines.push(`Победы левого: ${leftWins}`);
-      lines.push(`Победы правого: ${rightWins}`);
-      lines.push(`Ничьих: ${draws}`);
-      lines.push(`Таймаутов: ${timeouts}`);
+      lines.push(`Average duration: ${avgDuration.toFixed(2)}s`);
+      lines.push(`Median: ${medianDuration.toFixed(2)}s`);
+      lines.push(`P90: ${p90Duration.toFixed(2)}s`);
+      lines.push(`Min/Max: ${minDuration.toFixed(2)}s / ${maxDuration.toFixed(2)}s`);
+      lines.push(`Left wins: ${leftWins}`);
+      lines.push(`Right wins: ${rightWins}`);
+      lines.push(`Draws: ${draws}`);
+      lines.push(`Timeouts: ${timeouts}`);
 
       this.testReport = lines.join("\n");
       this.testReportName = "weapon-current-set-100-report.txt";
@@ -9686,7 +9676,7 @@ downloadBattleRecording() {
       this.mode = MODES.MENU;
       this.showMenu(TEXT.choose);
       this.syncMenu();
-      this.ui.testStatus.textContent = `Текущий сет x100 завершён. Средняя длительность: ${avgDuration.toFixed(2)}с (мин ${minDuration.toFixed(2)}с, макс ${maxDuration.toFixed(2)}с).`;
+      this.ui.testStatus.textContent = `Current set x100 completed. Average duration: ${avgDuration.toFixed(2)}s (min ${minDuration.toFixed(2)}s, max ${maxDuration.toFixed(2)}s).`;
       this.ui.downloadTournamentButton.disabled = false;
       this.ui.runTournamentButton.disabled = false;
       this.ui.runStressButton.disabled = false;
@@ -9807,7 +9797,7 @@ URL.revokeObjectURL(link.href);
         if (this.tournament && this.tournament.active) {
           this.tournament.breakTimer -= dt;
           const remaining = Math.max(0, this.tournament.breakTimer);
-          this.ui.testStatus.textContent = `${this.tournament.breakMessage} Следующий бой через ${remaining.toFixed(1)}с`;
+          this.ui.testStatus.textContent = `${this.tournament.breakMessage} Next fight in ${remaining.toFixed(1)}s`;
           if (this.tournament.breakTimer <= 0) {
             this.closeTournamentOverlay();
             this.startNextTournamentBattle();
@@ -10420,7 +10410,7 @@ URL.revokeObjectURL(link.href);
       const panelWidth = 380;
       const panelHeight = statusText ? 58 : 42;
       const panelX = align === "left" ? 12 : WIDTH - panelWidth - 12;
-      const panelY = HEIGHT - panelHeight - 12;
+      const panelY = HEIGHT - panelHeight - 72;
 
       ctx.fillStyle = "rgba(6, 10, 18, 0.88)";
       ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
@@ -10472,10 +10462,10 @@ URL.revokeObjectURL(link.href);
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffd978";
         ctx.font = "bold 20px Consolas, monospace";
-        ctx.fillText(this.tournament.breakMessage || "Пауза турнира", WIDTH / 2, 82);
+        ctx.fillText(this.tournament.breakMessage || "Tournament break", WIDTH / 2, 82);
         ctx.fillStyle = "#dfe8ff";
         ctx.font = "bold 16px Consolas, monospace";
-        ctx.fillText(`Следующий бой через ${Math.max(0, this.tournament.breakTimer).toFixed(1)}с`, WIDTH / 2, 108);
+        ctx.fillText(`Next fight in ${Math.max(0, this.tournament.breakTimer).toFixed(1)}s`, WIDTH / 2, 108);
         ctx.restore();
       }
     }

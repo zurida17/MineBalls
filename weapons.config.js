@@ -198,7 +198,7 @@
       "badge": "OB",
       "color": "#b7c7ff",
       "balanceBias": 0.08,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "beehive",
