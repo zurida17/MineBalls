@@ -6,11 +6,11 @@
   // Для изменения значений id смотри в конфигурации в app.js.
   window.GAME_WEAPON_CONFIG = {
   "balance": {
-    "damageScale": 1.45,
-    "speedScale": 1.5,
-    "adrenalineMultiplier": 1.85,
+    "damageScale": 0.5,
+    "speedScale": 1.0,
+    "adrenalineMultiplier": 1.0,
     "adrenalineDurationSec": 0.35,
-    "cooldownScale": 0.55,
+    "cooldownScale": 0.9,
     "projectileSpriteScale": 1.5,
     "simulationTimeoutSec": 120,
     "fastSetSimDt": 0.04,
