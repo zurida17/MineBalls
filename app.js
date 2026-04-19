@@ -8203,6 +8203,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.tournamentDraft = [];
       this.recordingEnabled = false;
       this.recordingActive = false;
+      this.recordingQuality = 0.85; // Reduce recording resolution for better performance (0.85 = 85% of full quality)
       this.recordingSupported = typeof MediaRecorder !== "undefined" && typeof this.canvas.captureStream === "function";
       this.recordingStream = null;
       this.recordingCanvas = null;
@@ -8781,8 +8782,9 @@ function updatePreviewElytra(weapon, dt, enemy) {
         return;
       }
       this.recordingCanvas = document.createElement("canvas");
-      this.recordingCanvas.width = RECORDING_SIZE.width;
-      this.recordingCanvas.height = RECORDING_SIZE.height;
+      // Apply quality multiplier to recording resolution for better performance
+      this.recordingCanvas.width = Math.round(RECORDING_SIZE.width * this.recordingQuality);
+      this.recordingCanvas.height = Math.round(RECORDING_SIZE.height * this.recordingQuality);
       this.recordingCtx = this.recordingCanvas.getContext("2d");
       this.recordingStream = this.createRecordingStream();
       this.syncRecordingButtons();
@@ -8909,6 +8911,7 @@ downloadBattleRecording() {
         return;
       }
       const ctx = this.recordingCtx;
+      ctx.imageSmoothingEnabled = false; // Faster rendering without quality loss for pixel art
       const targetWidth = this.recordingCanvas.width;
       const targetHeight = this.recordingCanvas.height;
       const scale = targetWidth / WIDTH;
@@ -8918,8 +8921,7 @@ downloadBattleRecording() {
       const offsetX = 0;
       const offsetY = Math.round(targetHeight * 0.5 - (arenaTop + arenaHeight * 0.5));
 
-      ctx.fillStyle = "#070b18";
-      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      ctx.fillStyle = \"#070b18\";\n      ctx.fillRect(0, 0, targetWidth, targetHeight);
 
       ctx.drawImage(
         this.canvas,
@@ -9997,7 +9999,8 @@ URL.revokeObjectURL(link.href);
           drawWidth,
           drawHeight
         );
-      } else {
+      } else if (!this.recordingActive) {
+        // Skip expensive visual effects during video recording
         this.drawColorCloud(ctx, WIDTH * 0.18 + Math.sin(t * 0.7) * 26, HEIGHT * 0.18 + Math.cos(t * 0.55) * 20, 260, "rgba(0, 255, 221, 0.18)");
         this.drawColorCloud(ctx, WIDTH * 0.81 + Math.sin(t * 0.42) * 32, HEIGHT * 0.22 + Math.cos(t * 0.37) * 24, 280, "rgba(60, 136, 255, 0.2)");
         this.drawColorCloud(ctx, WIDTH * 0.2 + Math.cos(t * 0.3) * 18, HEIGHT * 0.8 + Math.sin(t * 0.41) * 16, 300, "rgba(111, 255, 61, 0.14)");
@@ -10005,23 +10008,26 @@ URL.revokeObjectURL(link.href);
         this.drawHexField(ctx, t);
       }
 
-      ctx.save();
-      ctx.globalAlpha = 0.34;
-      const haze = ctx.createLinearGradient(0, HEIGHT * 0.2, 0, HEIGHT);
-      haze.addColorStop(0, "rgba(255, 255, 255, 0)");
-      haze.addColorStop(1, "rgba(0, 0, 0, 0.5)");
-      ctx.fillStyle = haze;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      if (!this.recordingActive) {
+        // Skip haze and particles during recording
+        ctx.save();
+        ctx.globalAlpha = 0.34;
+        const haze = ctx.createLinearGradient(0, HEIGHT * 0.2, 0, HEIGHT);
+        haze.addColorStop(0, "rgba(255, 255, 255, 0)");
+        haze.addColorStop(1, "rgba(0, 0, 0, 0.5)");
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      for (let index = 0; index < 30; index += 1) {
-        const x = (index * 47 + Math.sin(t * 0.4 + index) * 22 + WIDTH) % WIDTH;
-        const y = (index * 61 + Math.cos(t * 0.31 + index) * 16 + HEIGHT) % HEIGHT;
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.04 + (index % 3) * 0.024})`;
-        ctx.beginPath();
-        ctx.arc(x, y, 2 + (index % 2), 0, Math.PI * 2);
-        ctx.fill();
+        for (let index = 0; index < 30; index += 1) {
+          const x = (index * 47 + Math.sin(t * 0.4 + index) * 22 + WIDTH) % WIDTH;
+          const y = (index * 61 + Math.cos(t * 0.31 + index) * 16 + HEIGHT) % HEIGHT;
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.04 + (index % 3) * 0.024})`;
+          ctx.beginPath();
+          ctx.arc(x, y, 2 + (index % 2), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     drawColorCloud(ctx, x, y, radius, color) {
@@ -10082,9 +10088,12 @@ URL.revokeObjectURL(link.href);
       ctx.fillStyle = bg;
       ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
 
-      const t = performance.now() * 0.001;
-      this.drawColorCloud(ctx, ARENA.x + ARENA.width * 0.2 + Math.cos(t * 0.46) * 12, ARENA.y + ARENA.height * 0.22, 132, CUSTOM_ASSETS.palette.arenaGlowA);
-      this.drawColorCloud(ctx, ARENA.x + ARENA.width * 0.74 + Math.sin(t * 0.38) * 18, ARENA.y + ARENA.height * 0.72, 148, CUSTOM_ASSETS.palette.arenaGlowB);
+      if (!this.recordingActive) {
+        // Skip expensive glow effects during recording
+        const t = performance.now() * 0.001;
+        this.drawColorCloud(ctx, ARENA.x + ARENA.width * 0.2 + Math.cos(t * 0.46) * 12, ARENA.y + ARENA.height * 0.22, 132, CUSTOM_ASSETS.palette.arenaGlowA);
+        this.drawColorCloud(ctx, ARENA.x + ARENA.width * 0.74 + Math.sin(t * 0.38) * 18, ARENA.y + ARENA.height * 0.72, 148, CUSTOM_ASSETS.palette.arenaGlowB);
+      }
       ctx.restore();
     }
 
