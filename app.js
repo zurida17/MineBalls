@@ -4585,7 +4585,7 @@ if (id === "snowball") {
       this.owner = owner;
       this.stateKey = "normal";
       this.mass = 1.28;
-      this.armorMultiplier = 0.92;
+      this.armorMultiplier = 0.94;
       this.attackCooldown = 1.05;
       this.contactCooldown = 0;
       this.bucketKind = "ice";

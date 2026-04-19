@@ -7,7 +7,7 @@
   window.GAME_WEAPON_CONFIG = {
   "balance": {
     "damageScale": 1.45,
-    "speedScale": 1.75,
+    "speedScale": 1.5,
     "adrenalineMultiplier": 1.85,
     "adrenalineDurationSec": 0.35,
     "cooldownScale": 0.55,
@@ -29,8 +29,8 @@
       "fireTimeSec": 3.0,
       "wagonCount": 8,
       "wagonSpawnDelaySec": 0.12,
-      "wagonDamageMin": 8,
-      "wagonDamageMax": 9,
+      "wagonDamageMin": 7,
+      "wagonDamageMax": 8,
       "wagonHitCooldownSec": 0.08,
       "comboCooldownSec": 0.55,
       "comboDamage": 7,

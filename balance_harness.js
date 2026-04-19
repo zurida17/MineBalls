@@ -74,6 +74,7 @@ function createHarness() {
       return [];
     },
     body: new FakeElement("body"),
+    baseURI: "file://" + process.cwd() + "/",
   };
 
   const windowObject = {
@@ -105,6 +106,7 @@ function createHarness() {
     JSON,
     RegExp,
     Promise,
+    URL,
     performance: { now: () => 0 },
     requestAnimationFrame: () => 1,
     cancelAnimationFrame: () => {},
