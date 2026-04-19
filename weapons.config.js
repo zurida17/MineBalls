@@ -6,11 +6,11 @@
   // Для изменения значений id смотри в конфигурации в app.js.
   window.GAME_WEAPON_CONFIG = {
   "balance": {
-    "damageScale": 0.5,
-    "speedScale": 1.0,
-    "adrenalineMultiplier": 1.0,
+    "damageScale": 1.45,
+    "speedScale": 1.5,
+    "adrenalineMultiplier": 1.85,
     "adrenalineDurationSec": 0.35,
-    "cooldownScale": 0.9,
+    "cooldownScale": 0.55,
     "projectileSpriteScale": 1.5,
     "simulationTimeoutSec": 120,
     "fastSetSimDt": 0.04,
@@ -64,6 +64,7 @@
       "description": "Прокладывает путь после ударов о стены и выпускает вагонетки.",
       "badge": "RL",
       "color": "#f7d98d",
+      "balanceBias": 0.18,
       "category": "Наследие",
       "speedMin": 320.0,
       "speedMax": 380.0
@@ -74,6 +75,7 @@
       "description": "Бронированный корпус с чередованием ледяных и лавовых вёдер.",
       "badge": "BT",
       "color": "#8fd6ff",
+      "balanceBias": 0.00,
       "category": "Наследие",
       "speedMin": 280.0,
       "speedMax": 340.0
@@ -94,6 +96,7 @@
       "description": "Цепляет врага леской или подтягивает владельца к стене.",
       "badge": "FR",
       "color": "#9fd0ff",
+      "balanceBias": 0.07,
       "category": "Инструменты"
     },
     {
@@ -102,6 +105,7 @@
       "description": "Тяжёлый бросок, который всегда возвращается к владельцу.",
       "badge": "TR",
       "color": "#6de4ff",
+      "balanceBias": 0.02,
       "category": "Инструменты"
     },
     {
@@ -110,6 +114,7 @@
       "description": "Заливает арену, тормозит врагов и тушит огонь.",
       "badge": "WB",
       "color": "#6fb8ff",
+      "balanceBias": -0.05,
       "category": "Инструменты"
     },
     {
@@ -118,6 +123,7 @@
       "description": "Создаёт раскалённую зону и карает за ближнее давление.",
       "badge": "LB",
       "color": "#ff8b54",
+      "balanceBias": 0.08,
       "category": "Инструменты"
     },
     {
@@ -126,6 +132,7 @@
       "description": "Очереди замораживающих выстрелов, которые сбивают комбо.",
       "badge": "SN",
       "color": "#dff8ff",
+      "balanceBias": 0.10,
       "category": "Инструменты"
     },
     {
@@ -134,7 +141,9 @@
       "description": "Расползание огня по полу и выжигание маршрутов.",
       "badge": "FS",
       "color": "#ffb46e",
-      "category": "Инструменты"
+      "balanceBias": -0.60,
+      "category": "Инструменты",
+      "damageMultiplier": 8.0
     },
     {
       "id": "expBottle",
@@ -142,7 +151,9 @@
       "description": "Разбрасывает сферы опыта для зарядки зачарования.",
       "badge": "XP",
       "color": "#9c86ff",
-      "category": "Алхимия"
+      "balanceBias": -0.08,
+      "category": "Алхимия",
+      "damageMultiplier": 0.35
     },
     {
       "id": "totem",
@@ -150,6 +161,7 @@
       "description": "Одна экстренная вторая жизнь с окном контратаки.",
       "badge": "TT",
       "color": "#9ff39f",
+      "balanceBias": 0.01,
       "category": "Магия"
     },
     {
@@ -158,6 +170,7 @@
       "description": "Крадёт здоровье, баффы и заряд у врага рядом.",
       "badge": "HC",
       "color": "#c9c2a9",
+      "balanceBias": -0.02,
       "category": "Механизмы"
     },
     {
@@ -166,6 +179,7 @@
       "description": "Ставит взрывчатку с таймером и чистит арену.",
       "badge": "TN",
       "color": "#ff7878",
+      "balanceBias": -0.08,
       "category": "Механизмы"
     },
     {
@@ -174,6 +188,7 @@
       "description": "Толкает врага липким поршнем или даёт отскок владельцу.",
       "badge": "SP",
       "color": "#7cff99",
+      "balanceBias": 0.00,
       "category": "Механизмы"
     },
     {
@@ -182,6 +197,7 @@
       "description": "Считывает действия врага и бьёт импульсами срыва.",
       "badge": "OB",
       "color": "#b7c7ff",
+      "balanceBias": 0.08,
       "category": "Механизмы"
     },
     {
@@ -190,6 +206,7 @@
       "description": "Призывает пчёл, медовые зоны и паникующий рой.",
       "badge": "BH",
       "color": "#ffd45c",
+      "balanceBias": 0.00,
       "category": "Механизмы"
     },
     {
@@ -198,6 +215,7 @@
       "description": "Удары о стены рождают волны музыки и ломают контроль.",
       "badge": "NB",
       "color": "#ffc18a",
+      "balanceBias": 0.12,
       "category": "Механизмы"
     },
     {
@@ -206,7 +224,9 @@
       "description": "Собирает снаряды и телепортирует владельца от тяжёлых ударов.",
       "badge": "SB",
       "color": "#d3a7ff",
-      "category": "Механизмы"
+      "balanceBias": -0.50,
+      "category": "Механизмы",
+      "damageMultiplier": 0.3
     },
     {
       "id": "respawnAnchor",
@@ -214,6 +234,7 @@
       "description": "Ставит точку возврата и спасает резким скачком.",
       "badge": "RA",
       "color": "#b978ff",
+      "balanceBias": 0.14,
       "category": "Механизмы"
     },
     {
@@ -222,6 +243,7 @@
       "description": "Телепортирует сквозь опасность и за спину врага.",
       "badge": "EP",
       "color": "#9f7cff",
+      "balanceBias": -0.03,
       "category": "Измерения"
     },
     {
@@ -230,7 +252,9 @@
       "description": "Стелет лужи против рычков и искривляет арену порталами.",
       "badge": "CO",
       "color": "#7e5dff",
-      "category": "Измерения"
+      "balanceBias": -0.18,
+      "category": "Измерения",
+      "damageMultiplier": 0.35
     },
     {
       "id": "blazeRod",
@@ -238,7 +262,9 @@
       "description": "Тройные файерболлы и возвращающееся огненное кольцо.",
       "badge": "BR",
       "color": "#ffbd66",
-      "category": "Измерения"
+      "balanceBias": -0.38,
+      "category": "Измерения",
+      "damageMultiplier": 0.15
     },
     {
       "id": "rottenFlesh",
@@ -246,7 +272,9 @@
       "description": "Приводит зомби на арену и заражает поле боя.",
       "badge": "RF",
       "color": "#9dba76",
-      "category": "Магия"
+      "balanceBias": 0.35,
+      "category": "Магия",
+      "damageMultiplier": 1.8
     },
     {
       "id": "jackOLantern",
@@ -254,6 +282,7 @@
       "description": "Ставит световые ловушки и пугает врага вспышками.",
       "badge": "JL",
       "color": "#ffb657",
+      "balanceBias": 0.40,
       "category": "Магия"
     },
     {
@@ -262,7 +291,9 @@
       "description": "Выращивает случайный рельеф и опутывает цель.",
       "badge": "BM",
       "color": "#f3f0df",
-      "category": "Магия"
+      "balanceBias": -0.10,
+      "category": "Магия",
+      "damageMultiplier": 5.0
     },
     {
       "id": "bookQuill",
@@ -270,6 +301,7 @@
       "description": "Запоминает вражеские умения и отвечает эхом.",
       "badge": "BQ",
       "color": "#ffdca8",
+      "balanceBias": -0.10,
       "category": "Магия"
     },
     {
@@ -278,7 +310,9 @@
       "description": "Преобразуют скорость в планирование и пикирующие тараны.",
       "badge": "EL",
       "color": "#dbe7f9",
-      "category": "Измерения"
+      "balanceBias": 0.10,
+      "category": "Измерения",
+      "damageMultiplier": 1.5
     },
     {
       "id": "goldenApple",
@@ -286,6 +320,7 @@
       "description": "Даёт регенерацию в момент давления.",
       "badge": "GA",
       "color": "#ffd757",
+      "balanceBias": -0.06,
       "category": "Алхимия"
     },
     {
@@ -294,7 +329,9 @@
       "description": "Позволяет скрываться, пройти сквозь врага и сменить позицию.",
       "badge": "IV",
       "color": "#d6c9ff",
-      "category": "Алхимия"
+      "balanceBias": 0.03,
+      "category": "Алхимия",
+      "damageMultiplier": 1.5
     },
     {
       "id": "gravityPotion",
@@ -302,7 +339,9 @@
       "description": "Поднимает врага в воздух или облегчает владельца.",
       "badge": "GP",
       "color": "#b8d5ff",
-      "category": "Алхимия"
+      "balanceBias": 0.09,
+      "category": "Алхимия",
+      "damageMultiplier": 2.5
     },
     {
       "id": "turtlePotion",
@@ -310,6 +349,7 @@
       "description": "Сильно режет входящий урон и даёт панцирный рычок.",
       "badge": "TP",
       "color": "#7be2b2",
+      "balanceBias": 0.12,
       "category": "Алхимия"
     }
   ]

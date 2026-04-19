@@ -1128,6 +1128,7 @@ sprites/zones/water_still.png
       loadingSamples: new Set(),
       failedSamples: new Set(),
       recentPlays: new Map(),
+      audioUnsupportedWarned: false,
       init() {
         if (this.ctx) {
           return;
@@ -1136,7 +1137,10 @@ sprites/zones/water_still.png
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
           this.recordingDestination = this.ctx.createMediaStreamDestination();
         } catch (e) {
-          console.warn("Audio not supported");
+          if (!this.audioUnsupportedWarned) {
+            this.audioUnsupportedWarned = true;
+            console.warn("Audio not supported");
+          }
         }
       },
       ensureRecordingDestination() {
@@ -1892,6 +1896,14 @@ if (id === "snowball") {
   function weaponDefFromConfig(entry = {}) {
     const speedMin = entry.speedMin !== undefined ? Math.round(entry.speedMin * GLOBAL_SPEED_SCALE) : Math.round(220 * GLOBAL_SPEED_SCALE);
     const speedMax = entry.speedMax !== undefined ? Math.round(entry.speedMax * GLOBAL_SPEED_SCALE) : Math.round(280 * GLOBAL_SPEED_SCALE);
+    const hasBalanceBias = Number.isFinite(entry.balanceBias);
+    const balanceBias = hasBalanceBias ? entry.balanceBias : 0;
+    const derivedDamageMultiplier = Math.min(1.7, Math.max(0.45, 1 + balanceBias * 0.75));
+    const derivedDamageTakenMultiplier = Math.min(1.32, Math.max(0.68, 1 - balanceBias * 0.52));
+    const derivedHpMultiplier = Math.min(1.22, Math.max(0.82, 1 + balanceBias * 0.24));
+    const derivedCooldownRateMultiplier = Math.min(1.32, Math.max(0.78, 1 + balanceBias * 0.5));
+    const derivedMassMultiplier = Math.min(1.18, Math.max(0.82, 1 + balanceBias * 0.12));
+    const derivedArmorMultiplier = Math.min(1.2, Math.max(0.8, 1 - balanceBias * 0.18));
     const safeTitle = entry.title || entry.id || "Без названия";
     return {
       id: entry.id,
@@ -1902,6 +1914,13 @@ if (id === "snowball") {
       color: entry.color || "#d7e5ff",
       speedMin,
       speedMax,
+      balanceBias,
+      damageMultiplier: hasBalanceBias ? derivedDamageMultiplier : (Number.isFinite(entry.damageMultiplier) ? entry.damageMultiplier : derivedDamageMultiplier),
+      damageTakenMultiplier: hasBalanceBias ? derivedDamageTakenMultiplier : (Number.isFinite(entry.damageTakenMultiplier) ? entry.damageTakenMultiplier : derivedDamageTakenMultiplier),
+      hpMultiplier: hasBalanceBias ? derivedHpMultiplier : (Number.isFinite(entry.hpMultiplier) ? entry.hpMultiplier : derivedHpMultiplier),
+      cooldownRateMultiplier: hasBalanceBias ? derivedCooldownRateMultiplier : (Number.isFinite(entry.cooldownRateMultiplier) ? entry.cooldownRateMultiplier : derivedCooldownRateMultiplier),
+      massMultiplier: hasBalanceBias ? derivedMassMultiplier : (Number.isFinite(entry.massMultiplier) ? entry.massMultiplier : derivedMassMultiplier),
+      armorMultiplier: hasBalanceBias ? derivedArmorMultiplier : (Number.isFinite(entry.armorMultiplier) ? entry.armorMultiplier : derivedArmorMultiplier),
     };
   }
 
@@ -1934,6 +1953,48 @@ if (id === "snowball") {
 
   const WEAPON_CATALOG = weaponSource.map(weaponDefFromConfig).filter((weapon) => weapon.id);
   const WEAPON_LIBRARY = Object.fromEntries(WEAPON_CATALOG.map((weapon) => [weapon.id, weapon]));
+
+  function configureWeaponBalanceProfile(weapon) {
+    const meta = WEAPON_LIBRARY[weapon.id] || {};
+    weapon.damageMultiplier = Number.isFinite(meta.damageMultiplier) ? meta.damageMultiplier : 1;
+    weapon.damageTakenMultiplier = Number.isFinite(meta.damageTakenMultiplier) ? meta.damageTakenMultiplier : 1;
+    weapon.hpMultiplier = Number.isFinite(meta.hpMultiplier) ? meta.hpMultiplier : 1;
+    weapon.cooldownRateMultiplier = Number.isFinite(meta.cooldownRateMultiplier) ? meta.cooldownRateMultiplier : 1;
+    weapon.massMultiplier = Number.isFinite(meta.massMultiplier) ? meta.massMultiplier : 1;
+    weapon.balanceArmorMultiplier = Number.isFinite(meta.armorMultiplier) ? meta.armorMultiplier : 1;
+    return weapon;
+  }
+
+  function restoreWeaponBalanceFrame(weapon) {
+    if (!weapon || !weapon._balanceFrameApplied) {
+      return;
+    }
+    if (Number.isFinite(weapon._rawBalanceMass)) {
+      weapon.mass = weapon._rawBalanceMass;
+    }
+    if (Number.isFinite(weapon._rawBalanceArmor)) {
+      weapon.armorMultiplier = weapon._rawBalanceArmor;
+    }
+    weapon._balanceFrameApplied = false;
+  }
+
+  function applyWeaponBalanceFrame(weapon) {
+    if (!weapon) {
+      return;
+    }
+    const massMultiplier = Number.isFinite(weapon.massMultiplier) ? weapon.massMultiplier : 1;
+    const armorMultiplier = Number.isFinite(weapon.balanceArmorMultiplier) ? weapon.balanceArmorMultiplier : 1;
+    weapon._rawBalanceMass = Number.isFinite(weapon.mass) ? weapon.mass : 1;
+    weapon._rawBalanceArmor = Number.isFinite(weapon.armorMultiplier) ? weapon.armorMultiplier : 1;
+    weapon.mass = Math.max(0.2, weapon._rawBalanceMass * massMultiplier);
+    weapon.armorMultiplier = Math.max(0.2, weapon._rawBalanceArmor * armorMultiplier);
+    weapon._balanceFrameApplied = true;
+  }
+
+  function getWeaponCooldownDecay(weapon, dt) {
+    const cooldownRateMultiplier = weapon && Number.isFinite(weapon.cooldownRateMultiplier) ? weapon.cooldownRateMultiplier : 1;
+    return (dt * cooldownRateMultiplier) / GLOBAL_COOLDOWN_SCALE;
+  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -3675,6 +3736,7 @@ if (id === "snowball") {
       this.velocity = { ...options.velocity };
       this.initialVelocity = { ...options.velocity };
       this.hp = 100;
+      this.baseMaxHp = 100;
       this.maxHp = 100;
       this.dead = false;
       this.damageFlash = 0;
@@ -3701,6 +3763,10 @@ if (id === "snowball") {
 
     setWeapon(weapon) {
       this.weapon = weapon;
+      this.baseMaxHp = Math.max(60, Math.round(100 * (Number.isFinite(weapon.hpMultiplier) ? weapon.hpMultiplier : 1)));
+      this.maxHp = this.baseMaxHp;
+      this.hp = this.maxHp;
+      applyWeaponBalanceFrame(weapon);
       this.mass = weapon.mass;
       this.armorMultiplier = weapon.armorMultiplier;
       this.name = (WEAPON_LIBRARY[weapon.id] || LEGACY_WEAPON_LIBRARY[weapon.id] || { title: weapon.id }).title;
@@ -3850,12 +3916,19 @@ if (id === "snowball") {
         if (info.sourceFighter.weapon && info.sourceFighter.weapon.id === "shulkerBox") {
           sourceBonus *= 1.2;
         }
+        // Apply weapon-specific damage multiplier from config
+        if (info.sourceFighter.weapon && Number.isFinite(info.sourceFighter.weapon.damageMultiplier)) {
+          sourceBonus *= info.sourceFighter.weapon.damageMultiplier;
+        }
       }
       amount *= GLOBAL_DAMAGE_SCALE * sourceBonus;
+      if (this.weapon && Number.isFinite(this.weapon.damageTakenMultiplier)) {
+        amount *= this.weapon.damageTakenMultiplier;
+      }
       let armor = info.ignoreArmor ? 1 : this.armorMultiplier;
       let enchantBonus = 1;
       if (this.hasStatus("tanking")) {
-        armor *= 0.55;
+        armor *= 0.68;
       }
       if (info.sourceFighter && info.sourceFighter.enchantReady) {
         enchantBonus = 1.3;
@@ -4045,7 +4118,9 @@ if (id === "snowball") {
       }
 
       if (this.weapon) {
+        restoreWeaponBalanceFrame(this.weapon);
         this.weapon.update(dt, game, enemy);
+        applyWeaponBalanceFrame(this.weapon);
       }
 
       this.mass = this.weapon ? this.weapon.mass : 1;
@@ -4344,7 +4419,7 @@ if (id === "snowball") {
         ? clamp((game.roundTime - this.terminalStartSec) / (ROUND_LIMIT_SEC - this.terminalStartSec), 0, 1)
         : (game.roundTime >= this.terminalStartSec ? 1 : 0);
       if (this.breakCooldown > 0) {
-        this.breakCooldown = Math.max(0, this.breakCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+        this.breakCooldown = Math.max(0, this.breakCooldown - getWeaponCooldownDecay(this, dt));
       }
 
       if ((this.stateKey === "charging" || this.stateKey === "firing") && this.track && enemy && !isCombatantDead(enemy)) {
@@ -4657,7 +4732,7 @@ if (id === "snowball") {
     update(dt, game, enemy) {
       enemy = getNearestEnemyTarget(game, this.owner, enemy) || enemy;
       if (this.contactCooldown > 0) {
-        this.contactCooldown = Math.max(0, this.contactCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+        this.contactCooldown = Math.max(0, this.contactCooldown - getWeaponCooldownDecay(this, dt));
       }
 
       if (this.iceBoostTimer > 0) {
@@ -4675,7 +4750,7 @@ if (id === "snowball") {
         return;
       }
 
-      this.attackCooldown = Math.max(0, this.attackCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.attackCooldown = Math.max(0, this.attackCooldown - getWeaponCooldownDecay(this, dt));
       if (this.attackCooldown <= 0) {
         if (this.owner.shieldHp > 0 || this.owner.hasStatus("invulnerable")) {
           this.attackCooldown = 0.4;
@@ -4947,7 +5022,7 @@ this.ammo -= 1;
         return;
       }
 
-      this.attackCooldown = Math.max(0, this.attackCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.attackCooldown = Math.max(0, this.attackCooldown - getWeaponCooldownDecay(this, dt));
       if (this.attackCooldown <= 0 && !this.tether && !this.hookProjectile && this.ammo > 0) {
         this.fireHook(game, enemy);
       }
@@ -5145,7 +5220,7 @@ this.ammo -= 1;
         return;
       }
 
-      this.attackCooldown = Math.max(0, this.attackCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.attackCooldown = Math.max(0, this.attackCooldown - getWeaponCooldownDecay(this, dt));
       if (this.attackCooldown <= 0) {
         this.throwTrident(game, enemy);
       }
@@ -5224,14 +5299,14 @@ this.ammo -= 1;
           this.stateKey = "normal";
         }
       }
-      this.surgeCooldown = Math.max(0, this.surgeCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.surgeCooldown = Math.max(0, this.surgeCooldown - getWeaponCooldownDecay(this, dt));
 
       if (this.owner.hasStatus("frozen") || this.owner.hasStatus("silenced")) {
         return;
       }
 
       enemy = getNearestEnemyTarget(game, this.owner, enemy) || enemy;
-      this.attackCooldown = Math.max(0, this.attackCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.attackCooldown = Math.max(0, this.attackCooldown - getWeaponCooldownDecay(this, dt));
       if (this.attackCooldown <= 0) {
         this.cast(game, enemy);
       }
@@ -5328,7 +5403,7 @@ this.ammo -= 1;
         return;
       }
 
-      this.attackCooldown = Math.max(0, this.attackCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.attackCooldown = Math.max(0, this.attackCooldown - getWeaponCooldownDecay(this, dt));
       if (this.attackCooldown <= 0) {
         this.cast(game, enemy);
       }
@@ -5474,7 +5549,7 @@ this.ammo -= 1;
         return;
       }
 
-      this.burstCooldown = Math.max(0, this.burstCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      this.burstCooldown = Math.max(0, this.burstCooldown - getWeaponCooldownDecay(this, dt));
       if (this.burstCooldown <= 0) {
         this.volleyCount += 1;
         this.chargeVolley = this.volleyCount % 3 === 0;
@@ -5509,7 +5584,7 @@ this.ammo -= 1;
       this.trailDropTimer = 0;
       this.trails = [];
       this.lastDropPos = null;
-      this.maxTrailZones = 12;
+      this.maxTrailZones = 24;
     }
 
     reset() {
@@ -5531,11 +5606,11 @@ this.ammo -= 1;
         radiusY: Math.floor(this.owner.ballRadius * 0.8),
         startRadius: Math.floor(this.owner.ballRadius * 0.6),
         growTime: 0.08,
-        life: 2.5,
+        life: 3.2,
         tickRate: 1,
         color: "rgba(255, 128, 70, 0.48)",
         ownerImmune: true,
-        damage: 3,
+        damage: 8,
         data: {
           flintTrail: true,
         },
@@ -5559,7 +5634,7 @@ this.ammo -= 1;
       this.trailDropTimer -= dt;
       const movingEnough = length(this.owner.velocity) >= 24;
       if (movingEnough && this.trailDropTimer <= 0) {
-        this.trailDropTimer = 0.33;
+        this.trailDropTimer = 0.16;
         const back = length(this.owner.velocity) > 0.01 ? normalize(scale(this.owner.velocity, -1)) : vec(this.owner.side === "left" ? -1 : 1, 0);
         const dropPos = add(this.owner.position, scale(back, this.owner.ballRadius * 0.25));
         if (!this.lastDropPos || distance(this.lastDropPos, dropPos) >= 24) {
@@ -6319,7 +6394,7 @@ this.ammo -= 1;
         kind: "echo",
       });
       for (const target of pulse.targets) {
-        target.takeDamage(12, {
+        target.takeDamage(13, {
           game,
           type: "book-echo",
           hitFrom: weapon.owner.position,
@@ -6656,16 +6731,17 @@ this.ammo -= 1;
 
   function tickPreviewWeaponTimers(weapon, dt) {
     tickPreviewWeaponState(weapon, dt);
+    const cooldownDecay = getWeaponCooldownDecay(weapon, dt);
     // Decay ability cooldowns faster according to GLOBAL_COOLDOWN_SCALE
-    weapon.cooldown = Math.max(0, weapon.cooldown - dt / GLOBAL_COOLDOWN_SCALE);
-    weapon.altCooldown = Math.max(0, weapon.altCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+    weapon.cooldown = Math.max(0, weapon.cooldown - cooldownDecay);
+    weapon.altCooldown = Math.max(0, weapon.altCooldown - cooldownDecay);
     weapon.buffTimer = Math.max(0, weapon.buffTimer - dt); // buff durations remain unchanged
     weapon.activeTimer = Math.max(0, weapon.activeTimer - dt);
-    weapon.reloadTimer = Math.max(0, weapon.reloadTimer - dt / GLOBAL_COOLDOWN_SCALE);
-    weapon.bashCooldown = Math.max(0, weapon.bashCooldown - dt / GLOBAL_COOLDOWN_SCALE);
-    weapon.meleeCooldown = Math.max(0, weapon.meleeCooldown - dt / GLOBAL_COOLDOWN_SCALE);
-    weapon.teleportCooldown = Math.max(0, weapon.teleportCooldown - dt / GLOBAL_COOLDOWN_SCALE);
-    weapon.glideCrashLock = Math.max(0, weapon.glideCrashLock - dt / GLOBAL_COOLDOWN_SCALE);
+    weapon.reloadTimer = Math.max(0, weapon.reloadTimer - cooldownDecay);
+    weapon.bashCooldown = Math.max(0, weapon.bashCooldown - cooldownDecay);
+    weapon.meleeCooldown = Math.max(0, weapon.meleeCooldown - cooldownDecay);
+    weapon.teleportCooldown = Math.max(0, weapon.teleportCooldown - cooldownDecay);
+    weapon.glideCrashLock = Math.max(0, weapon.glideCrashLock - cooldownDecay);
     weapon.beeBoostTimer = Math.max(0, weapon.beeBoostTimer - dt);
     weapon.thornsCooldown = Math.max(0, weapon.thornsCooldown - dt);
   }
@@ -6879,7 +6955,7 @@ this.ammo -= 1;
     }
 
     if (weapon.totemCooldown > 0) {
-      weapon.totemCooldown = Math.max(0, weapon.totemCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+      weapon.totemCooldown = Math.max(0, weapon.totemCooldown - getWeaponCooldownDecay(weapon, dt));
     }
   }
 
@@ -7276,8 +7352,8 @@ this.ammo -= 1;
           onHit: (target, currentGame, shot) => {
             radialBlast(currentGame, shot.position, weapon.owner, {
               radius: 100,
-              damage: 35,
-              edgeDamage: 16,
+              damage: 20,
+              edgeDamage: 10,
               knockback: 320,
               color: "#d7baff",
               type: "shulker-grenade",
@@ -7289,7 +7365,7 @@ this.ammo -= 1;
         weapon.stored -= 5;
       } else if (weapon.stored >= 5) {
         const base = aimAtEnemy(weapon.owner, enemy, 0.12);
-        for (let index = 0; index < 4; index += 1) {
+        for (let index = 0; index < 3; index += 1) {
           const dir = rotateVector(base, (-0.6 + index * 0.4));
           const start = add(weapon.owner.position, scale(dir, weapon.owner.ballRadius + 18));
           game.projectiles.push(new Projectile({
@@ -7301,7 +7377,7 @@ this.ammo -= 1;
             color: "#e5cfff",
             radius: 8,
             onHit: (target, currentGame, shot) => {
-              target.takeDamage(11, {
+              target.takeDamage(7, {
                 game: currentGame,
                 type: "shulker-bolt",
                 hitFrom: shot.position,
@@ -7327,7 +7403,7 @@ this.ammo -= 1;
           color: "#e5cfff",
           radius: 8,
           onHit: (target, currentGame, shot) => {
-            target.takeDamage(14, {
+            target.takeDamage(8, {
               game: currentGame,
               type: "shulker-bolt",
               hitFrom: shot.position,
@@ -7433,7 +7509,7 @@ this.ammo -= 1;
     }
     weapon.anchors = nextAnchors;
 
-    weapon.teleportCooldown = Math.max(0, weapon.teleportCooldown - dt / GLOBAL_COOLDOWN_SCALE);
+    weapon.teleportCooldown = Math.max(0, weapon.teleportCooldown - getWeaponCooldownDecay(weapon, dt));
   }
 
   function updatePreviewPearl(weapon, game, enemy) {
@@ -7548,7 +7624,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
 
     if (!weapon.owner.hasStatus("frozen") && !weapon.owner.hasStatus("silenced") && weapon.cooldown <= 0 && enemy) {
       const base = aimAtEnemy(weapon.owner, enemy, 0.06, game);
-      for (let index = 0; index < 3; index += 1) {
+      for (let index = 0; index < 2; index += 1) {
         const dir = rotateVector(base, (-0.16 + index * 0.16));
         const start = add(weapon.owner.position, scale(dir, weapon.owner.ballRadius + 18));
         game.projectiles.push(new Projectile({
@@ -7561,7 +7637,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
           color: "#ffb567",
           radius: 12,
           onHit: (target, currentGame, shot) => {
-            target.takeDamage(8, {
+            target.takeDamage(5, {
               game: currentGame,
               type: "blaze-fireball",
               hitFrom: shot.position,
@@ -7574,7 +7650,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
           },
         }));
       }
-      for (let index = 0; index < 3; index += 1) {
+      for (let index = 0; index < 2; index += 1) {
         weapon.orbs.push({
           angle: (Math.PI * 2 * index) / 3,
           orbit: 88,
@@ -7583,7 +7659,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
           position: { ...weapon.owner.position },
         });
       }
-      weapon.cooldown = randomRange(4.4, 5.3);
+      weapon.cooldown = randomRange(5.8, 6.8);
       previewWeaponFlash(weapon, "firing", 0.35);
     }
 
@@ -7703,7 +7779,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
     const plantPoint = enemy ? pointOnSegment(weapon.owner.position, enemy.position, 0.72) : spawn;
     const plantType = enemy ? (chance(0.55) ? "bush" : (chance(0.4) ? "flower" : "mushroom")) : (chance(0.5) ? "flower" : "bush");
     createPreviewPlantZone(weapon, game, plantPoint, plantType);
-    weapon.minionSpawnTimer = 3.4;
+    weapon.minionSpawnTimer = 1.8;
     previewWeaponFlash(weapon, "firing", 0.25);
   }
 
@@ -7759,7 +7835,7 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
           continue;
         }
         if (distance(target.position, point) <= target.ballRadius + 40) {
-          target.takeDamage(16, {
+          target.takeDamage(17, {
             game,
             type: "book-lightning",
             hitFrom: point,
@@ -7800,32 +7876,34 @@ function updatePreviewBlaze(weapon, dt, game, enemy) {
       }));
     }
 
-    weapon.cooldown = 3;
+    weapon.cooldown = 2.9;
     previewWeaponFlash(weapon, "firing", 0.32);
   }
 
 function updatePreviewElytra(weapon, dt, enemy) {
-    if (!weapon.owner.hasStatus("gliding") && weapon.cooldown <= 0 && (length(weapon.owner.velocity) >= 140 || (enemy && distance(weapon.owner.position, enemy.position) >= 140))) {
-      weapon.owner.setStatus("gliding", 6.2);
-      weapon.cooldown = randomRange(1.9, 2.5);
+    const baseMaxHp = weapon.owner.baseMaxHp || 100;
+    if (!weapon.owner.hasStatus("gliding") && weapon.cooldown <= 0 && (length(weapon.owner.velocity) >= 130 || (enemy && distance(weapon.owner.position, enemy.position) >= 120))) {
+      weapon.owner.setStatus("gliding", 7.4);
+      weapon.cooldown = randomRange(1.4, 1.9);
       weapon.glideWindup = 0;
       previewWeaponFlash(weapon, "firing", 0.4);
     }
+    if (weapon.owner.hasStatus("gliding")) {
+      if (!weapon._elytraPrevMaxHp) {
+        weapon._elytraPrevMaxHp = baseMaxHp;
+      }
+      weapon.owner.maxHp = Math.round(weapon._elytraPrevMaxHp * 1.32);
+    } else if (weapon._elytraPrevMaxHp) {
+      weapon.owner.maxHp = weapon.owner.baseMaxHp || weapon._elytraPrevMaxHp;
+      delete weapon._elytraPrevMaxHp;
+    }
+    weapon.owner.hp = Math.min(weapon.owner.hp, weapon.owner.maxHp);
     if (!weapon.owner.hasStatus("gliding") || !enemy) {
       return;
     }
-    if (weapon.owner.hasStatus("gliding")) {
-      if (!weapon._elytraPrevMaxHp) {
-        weapon._elytraPrevMaxHp = weapon.owner.maxHp || 100;
-        weapon.owner.maxHp = 126;
-      }
-    } else if (weapon._elytraPrevMaxHp) {
-      weapon.owner.maxHp = weapon._elytraPrevMaxHp;
-      delete weapon._elytraPrevMaxHp;
-    }
     weapon.glideWindup = Math.max(0, weapon.glideWindup - dt);
     const desired = normalize(sub(enemy.position, weapon.owner.position));
-    weapon.owner.velocity = lerpVector(weapon.owner.velocity, scale(desired, 680), clamp(dt * 1.25, 0, 1));
+    weapon.owner.velocity = lerpVector(weapon.owner.velocity, scale(desired, 760), clamp(dt * 1.55, 0, 1));
     weapon.owner.clearStatus("submerged");
     weapon.owner.clearStatus("rooted");
   }
@@ -7963,7 +8041,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
             continue;
           }
           if (distance(target.position, anomaly.position) <= target.ballRadius + 26) {
-            target.takeDamage(8, {
+            target.takeDamage(14, {
               game,
               type: "gravity-center",
               hitFrom: anomaly.position,
@@ -7980,12 +8058,12 @@ function updatePreviewElytra(weapon, dt, enemy) {
   }
 
   function updatePreviewTurtle(weapon, dt, game, enemy) {
-    weapon.mass = weapon.owner.hasStatus("tanking") ? 1.15 : 1.06;
-    weapon.armorMultiplier = weapon.owner.hasStatus("tanking") ? 0.94 : 1;
+    weapon.mass = weapon.owner.hasStatus("tanking") ? 1.13 : 1.04;
+    weapon.armorMultiplier = weapon.owner.hasStatus("tanking") ? 0.98 : 1;
     weapon.stateKey = weapon.owner.hasStatus("tanking") ? "tanking" : "normal";
     if (!weapon.owner.hasStatus("frozen") && !weapon.owner.hasStatus("silenced") && !weapon.owner.hasStatus("tanking") && weapon.cooldown <= 0) {
       weapon.owner.setStatus("tanking", 2.1);
-      weapon.owner.addShield(12, game, "#8fe9be");
+      weapon.owner.addShield(9, game, "#8fe9be");
       weapon.cooldown = 9;
       weapon._wasTanking = true;
       previewWeaponFlash(weapon, "tanking", 0.45);
@@ -7998,8 +8076,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (game) {
         radialBlast(game, weapon.owner.position, weapon.owner, {
           radius: 120,
-          damage: 7,
-          edgeDamage: 3,
+          damage: 6,
+          edgeDamage: 2,
           knockback: 220,
           color: "#7be2b2",
           type: "shell-wave",
@@ -8014,31 +8092,27 @@ function updatePreviewElytra(weapon, dt, enemy) {
   }
 
   function createWeapon(id, owner) {
+    let weapon;
     if (id === "rail") {
-      return new RailWeapon(owner);
+      weapon = new RailWeapon(owner);
+    } else if (id === "boat") {
+      weapon = new BoatWeapon(owner);
+    } else if (id === "fishingRod") {
+      weapon = new FishingRodWeapon(owner);
+    } else if (id === "loyaltyTrident") {
+      weapon = new LoyaltyTridentWeapon(owner);
+    } else if (id === "waterBucket") {
+      weapon = new WaterBucketWeapon(owner);
+    } else if (id === "lavaBucket") {
+      weapon = new LavaBucketWeapon(owner);
+    } else if (id === "snowball") {
+      weapon = new SnowballWeapon(owner);
+    } else if (id === "flintSteel") {
+      weapon = new FlintSteelWeapon(owner);
+    } else {
+      weapon = new PreviewWeapon(id, owner);
     }
-    if (id === "boat") {
-      return new BoatWeapon(owner);
-    }
-    if (id === "fishingRod") {
-      return new FishingRodWeapon(owner);
-    }
-    if (id === "loyaltyTrident") {
-      return new LoyaltyTridentWeapon(owner);
-    }
-    if (id === "waterBucket") {
-      return new WaterBucketWeapon(owner);
-    }
-    if (id === "lavaBucket") {
-      return new LavaBucketWeapon(owner);
-    }
-    if (id === "snowball") {
-      return new SnowballWeapon(owner);
-    }
-    if (id === "flintSteel") {
-      return new FlintSteelWeapon(owner);
-    }
-    return new PreviewWeapon(id, owner);
+    return configureWeaponBalanceProfile(weapon);
   }
 
   class ResultState {
