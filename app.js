@@ -685,6 +685,45 @@ sounds/weapons/written_book.ogg
 sounds/weapons/written_book_1.ogg
 sounds/weapons/written_book_2.ogg
 sounds/weapons/written_book_3.ogg
+sounds/weapons/blaze_shoot.ogg
+sounds/weapons/fire_charge.ogg
+sounds/weapons/ghast_shoot.ogg
+sounds/weapons/magma_jump_1.ogg
+sounds/weapons/magma_jump_2.ogg
+sounds/weapons/guardian_attack.ogg
+sounds/weapons/guardian_hurt.ogg
+sounds/weapons/arrow_shoot.ogg
+sounds/weapons/crossbow_shoot_1.ogg
+sounds/weapons/crossbow_shoot_2.ogg
+sounds/weapons/egg_throw.ogg
+sounds/weapons/potion_throw.ogg
+sounds/weapons/shulker_shoot.ogg
+sounds/weapons/enchantment.ogg
+sounds/weapons/beacon_activate.ogg
+sounds/weapons/dragon_growl_1.ogg
+sounds/weapons/dragon_growl_2.ogg
+sounds/weapons/wither_ambient.ogg
+sounds/weapons/evoker_attack.ogg
+sounds/weapons/evoker_summon.ogg
+sounds/weapons/creeper_primed.ogg
+sounds/weapons/tnt_primed.ogg
+sounds/weapons/iron_golem_attack_1.ogg
+sounds/weapons/iron_golem_attack_2.ogg
+sounds/weapons/slime_jump_1.ogg
+sounds/weapons/slime_jump_2.ogg
+sounds/weapons/spider_ambient.ogg
+sounds/effects/snow_break_1.ogg
+sounds/effects/snow_break_2.ogg
+sounds/effects/thunder_extra_1.ogg
+sounds/effects/thunder_extra_2.ogg
+sounds/impact/shulker_hit.ogg
+sounds/impact/anvil_break.ogg
+sounds/impact/lightning_impact_1.ogg
+sounds/impact/lightning_impact_2.ogg
+sounds/impact/crit_1.ogg
+sounds/impact/crit_2.ogg
+sounds/impact/knockback_1.ogg
+sounds/impact/knockback_2.ogg
 `));
 
   const KNOWN_SPRITE_ASSETS = buildAssetLookup(parseAssetManifest(`
@@ -873,28 +912,28 @@ sprites/zones/water_still.png
 
   const SOUND_VARIANTS = {
     shoot: ["shoot", "shoot_1", "shoot_2", "shoot_3", "shoot_4"],
-    hit: ["hit", "hit_1", "hit_2", "hit_3", "hit_4", "hit_5", "hit_6"],
+    hit: ["hit", "hit_1", "hit_2", "hit_3", "hit_4", "hit_5", "hit_6", "crit_1", "crit_2", "knockback_1", "knockback_2"],
     wall: ["wall_1", "wall_2", "wall_3", "wall_4", "wall_5"],
     wallSoft: ["wall_soft_1", "wall_soft_2", "wall_soft_3", "wall_soft_4", "wall_soft_5"],
     ball: ["ball_1", "ball_2", "ball_3", "ball_4"],
-    thunder: ["thunder_1", "thunder_2", "thunder_3"],
+    thunder: ["thunder_1", "thunder_2", "thunder_3", "thunder_extra_1", "thunder_extra_2"],
     bookLaser: ["book_laser_1", "book_laser_2", "book_laser_3"],
-    bookLightning: ["book_lightning_1", "book_lightning_2", "book_lightning_3", "thunder_1", "thunder_2", "thunder_3"],
+    bookLightning: ["book_lightning_1", "book_lightning_2", "book_lightning_3", "thunder_1", "thunder_2", "thunder_3", "lightning_impact_1", "lightning_impact_2"],
     bookQuake: ["book_quake_1", "book_quake_2", "thunder_2", "thunder_3"],
   };
 
   const ELEMENT_SOUND_VARIANTS = {
-    fire: ["burn_1", "burn_2", "ignite_1", "ignite_2", "fire", "flint_and_steel", "blaze_rod", "blaze_rod_1", "blaze_rod_2", "jack_o_lantern", "jack_o_lantern_1"],
-    lava: ["lava_burst_1", "lava_burst_2", "lava_sizzle_1", "lava_sizzle_2", "lava", "lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3", "fire"],
-    water: ["water_splash_1", "water_splash_2", "water_splash_3", "water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3", "boat_3", "boat_4"],
-    ice: ["ice_crack_1", "ice_crack_2", "ice_crack_3", "ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4", "turtle_scute"],
-    ender: ["ender_blink_1", "ender_blink_2", "ender_blink_3", "ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport", "respawn_anchor", "crying_obsidian_2", "shulker_box"],
-    magic: ["magic_pop_1", "magic_pop_2", "magic_pop_3", "magic", "experience_bottle", "written_book", "invisibility", "gravity", "totem_of_undying", "book_laser_1", "book_lightning_1", "book_quake_1"],
-    nature: ["nature_buzz_1", "nature_buzz_2", "nature_buzz_3", "nature", "beehive", "beehive_1", "beehive_2", "beehive_3", "beehive_4", "bone_meal", "bone_meal_1", "bone_meal_2", "bone_meal_3", "bone_meal_4", "rotten_flesh", "rotten_flesh_1"],
-    metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "rail_3", "hopper_minecart", "observer", "observer_1", "observer_2", "observer_3", "trident", "trident_1", "trident_2"],
-    wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "boat_3", "boat_4", "fishing_rod", "fishing_rod_1", "fishing_rod_2", "fishing_rod_3", "fishing_rod_4"],
-    slime: ["slime_splat_1", "slime_splat_2", "slime", "slime_1", "slime_2"],
-    explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor"],
+    fire: ["burn_1", "burn_2", "ignite_1", "ignite_2", "fire", "flint_and_steel", "blaze_rod", "blaze_rod_1", "blaze_rod_2", "jack_o_lantern", "jack_o_lantern_1", "blaze_shoot", "fire_charge", "ghast_shoot"],
+    lava: ["lava_burst_1", "lava_burst_2", "lava_sizzle_1", "lava_sizzle_2", "lava", "lava_bucket", "lava_bucket_1", "lava_bucket_2", "lava_bucket_3", "fire", "magma_jump_1", "magma_jump_2"],
+    water: ["water_splash_1", "water_splash_2", "water_splash_3", "water", "water_bucket", "water_bucket_1", "water_bucket_2", "water_bucket_3", "boat_3", "boat_4", "guardian_attack", "guardian_hurt"],
+    ice: ["ice_crack_1", "ice_crack_2", "ice_crack_3", "ice", "snowball", "snowball_1", "snowball_2", "snowball_3", "snowball_4", "turtle_scute", "snow_break_1", "snow_break_2"],
+    ender: ["ender_blink_1", "ender_blink_2", "ender_blink_3", "ender_pearl", "ender_pearl_1", "ender_pearl_2", "teleport", "respawn_anchor", "crying_obsidian_2", "shulker_box", "shulker_shoot"],
+    magic: ["magic_pop_1", "magic_pop_2", "magic_pop_3", "magic", "experience_bottle", "written_book", "invisibility", "gravity", "totem_of_undying", "book_laser_1", "book_lightning_1", "book_quake_1", "enchantment", "beacon_activate", "dragon_growl_1", "dragon_growl_2", "wither_ambient", "evoker_attack", "evoker_summon"],
+    nature: ["nature_buzz_1", "nature_buzz_2", "nature_buzz_3", "nature", "beehive", "beehive_1", "beehive_2", "beehive_3", "beehive_4", "bone_meal", "bone_meal_1", "bone_meal_2", "bone_meal_3", "bone_meal_4", "rotten_flesh", "rotten_flesh_1", "spider_ambient"],
+    metal: ["metal_clang_1", "metal_clang_2", "metal_clang_3", "metal", "rail", "rail_1", "rail_2", "rail_3", "hopper_minecart", "observer", "observer_1", "observer_2", "observer_3", "trident", "trident_1", "trident_2", "iron_golem_attack_1", "iron_golem_attack_2", "anvil_break"],
+    wood: ["wood_thud_1", "wood_thud_2", "boat", "boat_1", "boat_2", "boat_3", "boat_4", "fishing_rod", "fishing_rod_1", "fishing_rod_2", "fishing_rod_3", "fishing_rod_4", "arrow_shoot", "crossbow_shoot_1", "crossbow_shoot_2", "egg_throw", "potion_throw"],
+    slime: ["slime_splat_1", "slime_splat_2", "slime", "slime_1", "slime_2", "slime_jump_1", "slime_jump_2"],
+    explosion: ["explosion_1", "explosion_2", "explosion_3", "tnt", "respawn_anchor", "creeper_primed", "tnt_primed"],
   };
 
   const IMPACT_SOUND_ALIASES = {
@@ -1411,7 +1450,7 @@ sprites/zones/water_still.png
         }, { volume: 0.45, throttleMs: 120, pitchJitter: 0.04 });
       },
       totems() {
-        this.playNamed("magic:totem", ["totem", "totem_of_undying"], () => {
+        this.playNamed("magic:totem", ["totem", "beacon_activate", "enchantment"], () => {
           this.playTone(440, 0.3, "sine", 0.12);
           this.playTone(660, 0.3, "sine", 0.09);
         }, { volume: 0.5, throttleMs: 160 });
@@ -1501,9 +1540,9 @@ sprites/zones/water_still.png
           ? [...COLLISION_SOUND_ALIASES.wallMetal, ...IMPACT_SOUND_ALIASES.metal]
           : COLLISION_SOUND_ALIASES.wall;
         this.playNamed(`collision:wall:${metalLike ? "metal" : "default"}`, aliases, () => {
-          this.playTone(metalLike ? 166 : 110, metalLike ? 0.06 : 0.05, metalLike ? "triangle" : "sine", 0.05);
-          this.playNoise(metalLike ? 0.03 : 0.022, metalLike ? 0.025 : 0.018);
-        }, { volume: metalLike ? 0.34 : 0.28, throttleMs: 45, pitchJitter: 0.04 });
+          this.playTone(metalLike ? 140 : 95, metalLike ? 0.06 : 0.05, metalLike ? "triangle" : "sine", 0.05);
+          this.playNoise(metalLike ? 0.03 : 0.022, metalLike ? 0.02 : 0.015);
+        }, { volume: metalLike ? 0.24 : 0.18, throttleMs: 45, pitchJitter: 0.04 });
       },
       ballCollision(speed = 0) {
         const heavy = speed > 230;
