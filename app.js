@@ -15,7 +15,7 @@
     width: 1080,
     height: 1920,
   };
-  const RECORDING_FPS = 60;
+  const RECORDING_FPS = 30; // Reduced from 60 to 30 for smoother recording
 
   // Положи пользовательские фоны в ./backgrounds/.
   // Положи пользовательские спрайты в ./sprites/.
@@ -8907,33 +8907,13 @@ downloadBattleRecording() {
     }
 
     renderRecordingFrame() {
-      if (!this.recordingActive || !this.recordingCtx || !this.recordingCanvas) {
+      // When using direct rendering, the recording canvas is already rendered
+      // This function now just ensures the stream gets the latest frame
+      if (!this.recordingActive || !this.recordingCanvas) {
         return;
       }
-      const ctx = this.recordingCtx;
-      ctx.imageSmoothingEnabled = false; // Faster rendering without quality loss for pixel art
-      const targetWidth = this.recordingCanvas.width;
-      const targetHeight = this.recordingCanvas.height;
-      const scale = targetWidth / WIDTH;
-      const drawHeight = Math.round(HEIGHT * scale);
-      const arenaHeight = Math.round(ARENA.height * scale);
-      const arenaTop = Math.round(ARENA.y * scale);
-      const offsetX = 0;
-      const offsetY = Math.round(targetHeight * 0.5 - (arenaTop + arenaHeight * 0.5));
-
-      ctx.fillStyle = \"#070b18\";\n      ctx.fillRect(0, 0, targetWidth, targetHeight);
-
-      ctx.drawImage(
-        this.canvas,
-        0,
-        0,
-        WIDTH,
-        HEIGHT,
-        offsetX,
-        offsetY,
-        targetWidth,
-        drawHeight
-      );
+      // The canvas is already rendered by renderToCanvas() during recording
+      // No additional drawing needed here
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
@@ -9645,26 +9625,38 @@ URL.revokeObjectURL(link.href);
         return;
       }
       this.update(dt);
-      this.render();
-      this.renderRecordingFrame();
+
+      // During recording, render directly to recording canvas for better performance
+      if (this.recordingActive && this.recordingCtx) {
+        this.renderToCanvas(this.recordingCtx, this.recordingCanvas.width, this.recordingCanvas.height);
+        this.renderRecordingFrame(); // Just copy to the stream
+      } else {
+        this.render();
+        this.renderRecordingFrame();
+      }
+
       requestAnimationFrame((time) => this.frame(time));
     }
 
     update(dt) {
-      if (this.screenShake > 0) {
+      if (this.screenShake > 0 && !this.recordingActive) {
         this.screenShake = Math.max(0, this.screenShake - dt * 0.95);
       }
-      if (this.impactFlash > 0) {
+      if (this.impactFlash > 0 && !this.recordingActive) {
         this.impactFlash = Math.max(0, this.impactFlash - dt * 1.9);
       }
 
       for (const particle of this.particles) {
-        particle.update(dt);
+        if (!this.recordingActive) {
+          particle.update(dt);
+        }
       }
       this.particles = this.particles.filter((particle) => particle.life > 0);
 
       for (const text of this.texts) {
-        text.update(dt);
+        if (!this.recordingActive) {
+          text.update(dt);
+        }
       }
       this.texts = this.texts.filter((text) => text.life > 0);
 
@@ -9937,43 +9929,63 @@ URL.revokeObjectURL(link.href);
     }
 
     render() {
-      const ctx = this.ctx;
-      ctx.clearRect(0, 0, WIDTH, HEIGHT);
-      this.drawBackground(ctx);
+      this.renderToCanvas(this.ctx, WIDTH, HEIGHT);
+    }
 
-      ctx.save();
-      if (this.screenShake > 0 && this.mode !== MODES.MENU) {
+    renderToCanvas(targetCtx, targetWidth, targetHeight) {
+      const scaleX = targetWidth / WIDTH;
+      const scaleY = targetHeight / HEIGHT;
+
+      targetCtx.clearRect(0, 0, targetWidth, targetHeight);
+
+      // Save current context state
+      targetCtx.save();
+
+      // Scale everything to fit the target canvas
+      targetCtx.scale(scaleX, scaleY);
+
+      this.drawBackground(targetCtx);
+
+      if (this.screenShake > 0 && this.mode !== MODES.MENU && !this.recordingActive) {
         const amount = this.screenShake * 14;
-        ctx.translate(randomRange(-amount, amount), randomRange(-amount, amount));
+        targetCtx.translate(randomRange(-amount, amount), randomRange(-amount, amount));
       }
 
-      this.drawArena(ctx);
-      this.drawArenaBackground(ctx);
+      this.drawArena(targetCtx);
+      this.drawArenaBackground(targetCtx);
 
       for (const zone of this.zones) {
-        zone.draw(ctx, this);
+        zone.draw(targetCtx, this);
       }
       for (const projectile of this.projectiles) {
-        projectile.draw(ctx, this);
+        projectile.draw(targetCtx, this);
       }
       for (const fighter of this.fighters) {
         if (fighter.weapon && typeof fighter.weapon.drawArena === "function") {
-          fighter.weapon.drawArena(ctx, this);
+          fighter.weapon.drawArena(targetCtx, this);
         }
       }
 
-      this.drawFighters(ctx);
-      for (const particle of this.particles) {
-        particle.draw(ctx);
+      this.drawFighters(targetCtx);
+      if (!this.recordingActive) {
+        for (const particle of this.particles) {
+          particle.draw(targetCtx);
+        }
       }
       for (const text of this.texts) {
-        text.draw(ctx);
+        text.draw(targetCtx);
       }
-      ctx.restore();
 
-      this.drawHud(ctx);
-      this.drawOverlayText(ctx);
-      this.drawScreenFx(ctx);
+      // Restore context state
+      targetCtx.restore();
+
+      // Draw HUD and overlay (scale appropriately)
+      targetCtx.save();
+      targetCtx.scale(scaleX, scaleY);
+      this.drawHud(targetCtx);
+      this.drawOverlayText(targetCtx);
+      this.drawScreenFx(targetCtx);
+      targetCtx.restore();
     }
 
     drawBackground(ctx) {
