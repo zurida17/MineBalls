@@ -15,9 +15,9 @@
     width: WIDTH,
     height: HEIGHT,
   };
-  const RECORDING_FPS = 30;
-  const RECORDING_VIDEO_BITRATE = 8000000;
-  const RECORDING_AUDIO_BITRATE = 160000;
+  const RECORDING_FPS = 60;
+  const RECORDING_VIDEO_BITRATE = 12000000;
+  const RECORDING_AUDIO_BITRATE = 256000;
 
   // Put custom backgrounds in ./backgrounds/.
   // Put custom sprites in ./sprites/.
@@ -1164,6 +1164,8 @@ sprites/zones/water_still.png
     const AUDIO = {
       ctx: null,
       recordingDestination: null,
+      musicBus: null,
+      musicState: null,
       sampleCache: new Map(),
       lastSampleIndex: new Map(),
       loadingSamples: new Set(),
@@ -1175,7 +1177,11 @@ sprites/zones/water_still.png
           return;
         }
         try {
-          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new Ctx({
+            latencyHint: "interactive",
+            sampleRate: 48000,
+          });
           this.recordingDestination = this.ctx.createMediaStreamDestination();
         } catch (e) {
           if (!this.audioUnsupportedWarned) {
@@ -1197,6 +1203,90 @@ sprites/zones/water_still.png
         if (this.ctx && this.ctx.state === "suspended") {
           this.ctx.resume();
         }
+      },
+      ensureMusicBus() {
+        if (!this.ctx) {
+          this.init();
+        }
+        if (!this.ctx) {
+          return null;
+        }
+        if (!this.musicBus) {
+          this.musicBus = this.ctx.createGain();
+          this.musicBus.gain.value = 0.18;
+          this.musicBus.connect(this.ctx.destination);
+          if (this.recordingDestination) {
+            this.musicBus.connect(this.recordingDestination);
+          }
+        }
+        if (!this.musicState) {
+          this.musicState = {
+            nextPadAt: 0,
+            nextBellAt: 0,
+            root: 196,
+          };
+        }
+        return this.musicBus;
+      },
+      ambientTick() {
+        if (!this.ctx || this.ctx.state !== "running") {
+          return;
+        }
+        const bus = this.ensureMusicBus();
+        if (!bus || !this.musicState) {
+          return;
+        }
+        const now = this.ctx.currentTime;
+        if (now >= this.musicState.nextPadAt) {
+          this.playAmbientPad(now);
+          this.musicState.nextPadAt = now + randomRange(4.8, 6.9);
+        }
+        if (now >= this.musicState.nextBellAt) {
+          this.playAmbientBell(now);
+          this.musicState.nextBellAt = now + randomRange(2.8, 4.5);
+        }
+      },
+      playAmbientPad(when) {
+        if (!this.ctx || !this.musicBus) {
+          return;
+        }
+        const roots = [130.81, 146.83, 174.61, 196.0, 220.0];
+        const root = roots[randomInt(0, roots.length - 1)];
+        this.musicState.root = root;
+        const chord = [root, root * 1.25, root * 1.5];
+        for (const freq of chord) {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.value = freq;
+          osc.detune.value = randomRange(-4, 4);
+          gain.gain.setValueAtTime(0.0001, when);
+          gain.gain.linearRampToValueAtTime(0.045, when + 1.2);
+          gain.gain.linearRampToValueAtTime(0.0001, when + 4.8);
+          osc.connect(gain);
+          gain.connect(this.musicBus);
+          osc.start(when);
+          osc.stop(when + 5.1);
+        }
+      },
+      playAmbientBell(when) {
+        if (!this.ctx || !this.musicBus || !this.musicState) {
+          return;
+        }
+        const root = this.musicState.root || 196;
+        const melody = [1, 1.125, 1.25, 1.5, 2];
+        const freq = root * melody[randomInt(0, melody.length - 1)];
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, when);
+        gain.gain.linearRampToValueAtTime(0.028, when + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, when + 1.8);
+        osc.connect(gain);
+        gain.connect(this.musicBus);
+        osc.start(when);
+        osc.stop(when + 2);
       },
       nowMs() {
         return typeof performance !== "undefined" && typeof performance.now === "function"
@@ -8168,7 +8258,10 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.canvas = canvas;
       this.canvas.width = WIDTH;
       this.canvas.height = HEIGHT;
-      this.ctx = canvas.getContext("2d");
+      this.ctx = canvas.getContext("2d", { alpha: false, desynchronized: false });
+      if (this.ctx && "imageSmoothingQuality" in this.ctx) {
+        this.ctx.imageSmoothingQuality = "high";
+      }
       this.ui = ui;
       this.mode = MODES.MENU;
       this.time = 0;
@@ -8205,6 +8298,9 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.tournament = null;
       this.tournamentEntrantCount = 8;
       this.tournamentDraft = [];
+      this.tournamentRoundDelaySec = 2.6;
+      this.tournamentIntroDelaySec = 3.2;
+      this.tournamentChampionDelaySec = 3.8;
       this.recordingEnabled = false;
       this.recordingActive = false;
       this.recordingSupported = typeof MediaRecorder !== "undefined" && typeof this.canvas.captureStream === "function";
@@ -8216,7 +8312,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingBlob = null;
       this.recordingUrl = "";
       this.recordingMime = "";
-      this.recordingExtension = "mp4";
+      this.recordingExtension = "webm";
       this.recordingVideoTrack = null;
       this.recordingFrameInterval = 1 / RECORDING_FPS;
       this.recordingFrameAccumulator = 0;
@@ -8439,8 +8535,12 @@ function updatePreviewElytra(weapon, dt, enemy) {
         rounds,
         currentBattle: null,
         breakTimer: 0,
+        breakType: "intro",
+        breakFocus: null,
+        breakAnnouncement: null,
         breakMessage: "",
         championId: null,
+        autoRestartPending: false,
       };
     }
 
@@ -8656,15 +8756,21 @@ function updatePreviewElytra(weapon, dt, enemy) {
       }
       this.tournament = this.buildTournamentState();
       this.renderTournamentBracket();
-      this.ui.tournamentStatus.textContent = "Tournament started.";
+      this.tournament.breakType = "intro";
+      this.tournament.breakFocus = null;
+      this.tournament.breakAnnouncement = null;
+      this.tournament.breakTimer = this.tournamentIntroDelaySec;
+      this.tournament.breakMessage = "Tournament lineup: fighters are entering the bracket.";
+      this.tournament.autoRestartPending = false;
+      this.ui.tournamentStatus.textContent = this.tournament.breakMessage;
       this.closeTournamentOverlay();
       this.hideMenu();
-      this.startNextTournamentBattle();
+      this.mode = MODES.TOURNAMENT_BREAK;
     }
 
     resolveTournamentBattle() {
       if (!this.tournament || !this.tournament.currentBattle) {
-        return;
+        return null;
       }
       const { roundIndex, matchIndex, leftId, rightId } = this.tournament.currentBattle;
       const match = this.tournament.rounds[roundIndex][matchIndex];
@@ -8677,6 +8783,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       const loserId = winnerId === leftId ? rightId : leftId;
       match.winnerId = winnerId;
       match.loserId = loserId;
+      this.tournament.breakFocus = { roundIndex, matchIndex, winnerId, loserId };
 
       if (roundIndex + 1 < this.tournament.rounds.length) {
         const nextMatch = this.tournament.rounds[roundIndex + 1][Math.floor(matchIndex / 2)];
@@ -8694,18 +8801,43 @@ function updatePreviewElytra(weapon, dt, enemy) {
       const winnerWeapon = this.getWeaponMeta(winnerEntry.weaponId);
       const loserWeapon = this.getWeaponMeta(loserEntry.weaponId);
       const next = this.getNextTournamentMatch();
+      const currentRoundLabel = this.roundLabel(roundIndex, this.tournament.rounds.length, this.tournament.rounds[roundIndex].length);
+      let advanceLabel = "Becomes champion";
+      if (roundIndex + 1 < this.tournament.rounds.length) {
+        const nextRoundMatches = this.tournament.rounds[roundIndex + 1].length;
+        advanceLabel = `Advances to ${this.roundLabel(roundIndex + 1, this.tournament.rounds.length, nextRoundMatches)}`;
+      }
+      this.tournament.breakAnnouncement = {
+        winnerName: winnerEntry.label,
+        loserName: loserEntry.label,
+        winnerWeapon: winnerWeapon.title,
+        loserWeapon: loserWeapon.title,
+        currentRoundLabel,
+        advanceLabel,
+      };
       if (next) {
         const nextLeft = this.tournament.entrantsById[next.match.leftId];
         const nextRight = this.tournament.entrantsById[next.match.rightId];
         const nextLeftWeapon = this.getWeaponMeta(nextLeft.weaponId).title;
         const nextRightWeapon = this.getWeaponMeta(nextRight.weaponId).title;
         this.tournament.breakMessage = `${winnerWeapon.title} won. ${loserWeapon.title} is eliminated. Next: ${nextLeftWeapon} vs ${nextRightWeapon}.`;
+        this.tournament.breakType = "match";
+        this.tournament.breakTimer = this.tournamentRoundDelaySec;
+        this.tournament.autoRestartPending = false;
       } else {
         this.tournament.breakMessage = `${winnerWeapon.title} won. ${loserWeapon.title} is eliminated.`;
+        this.finishTournament();
       }
       this.ui.tournamentStatus.textContent = this.tournament.breakMessage;
       this.tournament.currentBattle = null;
       this.renderTournamentBracket();
+      return {
+        roundIndex,
+        matchIndex,
+        winnerId,
+        loserId,
+        finished: !next,
+      };
     }
 
     finishTournament() {
@@ -8714,11 +8846,179 @@ function updatePreviewElytra(weapon, dt, enemy) {
       }
       const champion = this.tournament.championId ? this.tournament.entrantsById[this.tournament.championId] : null;
       const championTitle = champion ? this.getWeaponMeta(champion.weaponId).title : "unknown";
-      this.ui.tournamentStatus.textContent = `Tournament complete. Winner: ${championTitle}.`;
+      this.tournament.breakType = "champion";
+      this.tournament.breakTimer = this.tournamentChampionDelaySec;
+      this.tournament.breakMessage = `Tournament complete. Winner: ${championTitle}.`;
+      this.tournament.breakAnnouncement = champion
+        ? {
+          winnerName: champion.label,
+          winnerWeapon: championTitle,
+          currentRoundLabel: "Final",
+          advanceLabel: "Champion",
+        }
+        : null;
+      this.tournament.autoRestartPending = true;
+      this.ui.tournamentStatus.textContent = `${this.tournament.breakMessage} Preparing a new random bracket...`;
       this.tournament.active = false;
-      this.mode = MODES.MENU;
-      this.showMenu(`Tournament complete. Winner: ${championTitle}.`);
-      this.openTournamentOverlay();
+      this.mode = MODES.TOURNAMENT_BREAK;
+    }
+
+    restartTournamentLoop() {
+      this.randomizeTournamentDraft();
+      this.tournament = this.buildTournamentState();
+      this.tournament.breakType = "intro";
+      this.tournament.breakFocus = null;
+      this.tournament.breakAnnouncement = null;
+      this.tournament.breakTimer = this.tournamentIntroDelaySec;
+      this.tournament.breakMessage = "New random setup ready. Starting next bracket.";
+      this.tournament.autoRestartPending = false;
+      this.ui.tournamentStatus.textContent = this.tournament.breakMessage;
+      this.renderTournamentBracket();
+      this.mode = MODES.TOURNAMENT_BREAK;
+    }
+
+    tournamentBreakCountdownText() {
+      if (!this.tournament) {
+        return "";
+      }
+      if (this.tournament.breakType === "intro") {
+        return "First battle starts in";
+      }
+      if (this.tournament.breakType === "champion") {
+        return "Next random tournament in";
+      }
+      return "Next fight in";
+    }
+
+    drawTournamentBreakScene(ctx) {
+      if (!this.tournament) {
+        return;
+      }
+      const panel = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+      panel.addColorStop(0, "rgba(3, 7, 16, 0.94)");
+      panel.addColorStop(1, "rgba(2, 5, 12, 0.97)");
+      ctx.fillStyle = panel;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      const title = this.tournament.breakType === "intro"
+        ? "LIVE TOURNAMENT BRACKET"
+        : (this.tournament.breakType === "champion" ? "TOURNAMENT CHAMPION" : "MATCH RESULT");
+      ctx.fillStyle = "#f7fbff";
+      ctx.font = "bold 52px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(title, WIDTH / 2, 178);
+
+      if (this.tournament.breakAnnouncement) {
+        const a = this.tournament.breakAnnouncement;
+        ctx.fillStyle = "#9fd1ff";
+        ctx.font = "bold 24px Consolas, monospace";
+        ctx.fillText(a.currentRoundLabel || "", WIDTH / 2, 224);
+        ctx.fillStyle = "#7dff9b";
+        ctx.font = "bold 32px Consolas, monospace";
+        ctx.fillText(`${a.winnerName || "Winner"} (${a.winnerWeapon || ""})`, WIDTH / 2, 268);
+        if (a.loserName) {
+          ctx.fillStyle = "#ffb59f";
+          ctx.font = "bold 22px Consolas, monospace";
+          ctx.fillText(`Defeated: ${a.loserName} (${a.loserWeapon || ""})`, WIDTH / 2, 304);
+        }
+        ctx.fillStyle = "#ffe08f";
+        ctx.font = "bold 22px Consolas, monospace";
+        ctx.fillText(a.advanceLabel || "", WIDTH / 2, 338);
+      }
+      if (this.tournament.breakType === "intro") {
+        this.drawTournamentEntrantColumns(ctx, this.tournament);
+      } else {
+        this.drawTournamentMiniBracket(ctx, this.tournament, this.tournament.breakFocus);
+      }
+    }
+
+    drawTournamentEntrantColumns(ctx, tournament) {
+      const entrants = tournament.entrants || [];
+      if (!entrants.length) {
+        return;
+      }
+      const half = Math.ceil(entrants.length / 2);
+      const left = entrants.slice(0, half);
+      const right = entrants.slice(half);
+      const top = 420;
+      const rows = Math.max(left.length, right.length);
+      const step = Math.max(44, Math.min(72, Math.floor(900 / Math.max(1, rows))));
+      const t = performance.now() * 0.001;
+      const drawColumn = (items, x, tint, sideSign) => {
+        items.forEach((entry, index) => {
+          const y = top + index * step;
+          const slide = clamp((this.tournamentIntroDelaySec - this.tournament.breakTimer) * 2.2 - index * 0.1, 0, 1);
+          const offsetX = (1 - slide) * 70 * sideSign;
+          const alpha = 0.35 + slide * 0.65;
+          const weapon = this.getWeaponMeta(entry.weaponId);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = tint;
+          ctx.fillRect(x - 188 + offsetX, y, 376, 34);
+          ctx.strokeStyle = "rgba(255,255,255,0.16)";
+          ctx.strokeRect(x - 188 + offsetX, y, 376, 34);
+          ctx.fillStyle = "#f4f8ff";
+          ctx.font = "bold 16px Consolas, monospace";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`${entry.label}: ${weapon.title}`, x - 174 + offsetX, y + 17);
+          ctx.restore();
+        });
+      };
+      drawColumn(left, WIDTH * 0.26 + Math.sin(t * 0.9) * 3, "rgba(52, 140, 255, 0.22)", -1);
+      drawColumn(right, WIDTH * 0.74 + Math.cos(t * 0.84) * 3, "rgba(98, 225, 165, 0.22)", 1);
+    }
+
+    drawTournamentMiniBracket(ctx, tournament, focus) {
+      const rounds = tournament.rounds || [];
+      if (!rounds.length) {
+        return;
+      }
+      const totalRounds = rounds.length;
+      const left = 112;
+      const right = WIDTH - 112;
+      const top = 430;
+      const bottom = HEIGHT - 220;
+      const usableHeight = bottom - top;
+      const columnGap = totalRounds > 1 ? (right - left) / (totalRounds - 1) : 0;
+      for (let roundIndex = 0; roundIndex < totalRounds; roundIndex += 1) {
+        const matches = rounds[roundIndex];
+        const x = left + columnGap * roundIndex;
+        ctx.fillStyle = "rgba(220, 232, 255, 0.86)";
+        ctx.font = "bold 16px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(this.roundLabel(roundIndex, totalRounds, matches.length), x, top - 22);
+        const step = usableHeight / Math.max(1, matches.length);
+        for (let matchIndex = 0; matchIndex < matches.length; matchIndex += 1) {
+          const y = top + step * (matchIndex + 0.5);
+          const match = matches[matchIndex];
+          const isFocus = focus && focus.roundIndex === roundIndex && focus.matchIndex === matchIndex;
+          ctx.save();
+          ctx.fillStyle = match.winnerId ? "rgba(84, 220, 150, 0.24)" : "rgba(46, 70, 108, 0.42)";
+          ctx.fillRect(x - 68, y - 16, 136, 32);
+          ctx.strokeStyle = isFocus ? "rgba(255, 224, 113, 0.95)" : "rgba(255,255,255,0.24)";
+          ctx.lineWidth = isFocus ? 2.2 : 1;
+          ctx.strokeRect(x - 68, y - 16, 136, 32);
+          ctx.fillStyle = "#e6f0ff";
+          ctx.font = "bold 13px Consolas, monospace";
+          const leftMark = match.leftId ? "L" : "-";
+          const rightMark = match.rightId ? "R" : "-";
+          const winnerMark = match.winnerId ? (match.winnerId === match.leftId ? "L" : "R") : "?";
+          ctx.fillText(`${leftMark} vs ${rightMark} -> ${winnerMark}`, x, y + 4);
+          ctx.restore();
+          if (roundIndex < totalRounds - 1) {
+            const nextYStep = usableHeight / Math.max(1, rounds[roundIndex + 1].length);
+            const nextY = top + nextYStep * (Math.floor(matchIndex / 2) + 0.5);
+            ctx.save();
+            ctx.strokeStyle = "rgba(188, 212, 255, 0.26)";
+            ctx.beginPath();
+            ctx.moveTo(x + 68, y);
+            ctx.lineTo(x + columnGap - 68, nextY);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
     }
 
     bindUi() {
@@ -8792,7 +9092,10 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas = document.createElement("canvas");
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
-      this.recordingCtx = this.recordingCanvas.getContext("2d");
+      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: false });
+      if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
+        this.recordingCtx.imageSmoothingQuality = "high";
+      }
       this.syncRecordingButtons();
     }
 
@@ -8826,10 +9129,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
 
     getRecordingConfig() {
       const candidates = [
-        { mimeType: "video/mp4;codecs=avc1.640028,mp4a.40.2", extension: "mp4" },
-        { mimeType: "video/mp4;codecs=avc1.4d4028,mp4a.40.2", extension: "mp4" },
-        { mimeType: "video/mp4;codecs=avc1.42E01E,mp4a.40.2", extension: "mp4" },
-        { mimeType: "video/mp4", extension: "mp4" },
         { mimeType: "video/webm;codecs=vp9,opus", extension: "webm" },
         { mimeType: "video/webm;codecs=vp8,opus", extension: "webm" },
         { mimeType: "video/webm", extension: "webm" },
@@ -8845,9 +9144,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
 
     getRecordingExtension(mimeType) {
-      if (mimeType && mimeType.includes("mp4")) {
-        return "mp4";
-      }
       return "webm";
     }
 
@@ -8855,11 +9151,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!this.ui.recordBattleButton || !this.ui.downloadBattleButton) {
         return;
       }
-      const formatLabel = (this.recordingExtension || "mp4").toUpperCase();
+      const formatLabel = (this.recordingExtension || "webm").toUpperCase();
       this.ui.recordBattleButton.textContent = this.recordingEnabled
         ? `Recording ${formatLabel}: ON`
         : `Recording ${formatLabel}: OFF`;
-      this.ui.downloadBattleButton.textContent = `Download battle (.${this.recordingExtension || "mp4"})`;
+      this.ui.downloadBattleButton.textContent = `Download battle (.${this.recordingExtension || "webm"})`;
       this.ui.downloadBattleButton.disabled = !this.recordingUrl;
     }
 
@@ -8871,12 +9167,15 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!this.recordingEnabled && this.recordingActive) {
         this.stopBattleRecording({ keepCurrent: true });
       }
+      AUDIO.init();
+      AUDIO.resume();
+      AUDIO.ensureMusicBus();
       this.syncRecordingButtons();
     }
 
     getRecordingMimeType() {
       const candidates = [
-        "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+        "video/webm;codecs=vp9,opus",
         "video/webm;codecs=vp8,opus",
         "video/webm",
       ];
@@ -9742,6 +10041,7 @@ URL.revokeObjectURL(link.href);
     }
 
     update(dt) {
+      AUDIO.ambientTick();
       if (this.screenShake > 0) {
         this.screenShake = Math.max(0, this.screenShake - dt * 0.95);
       }
@@ -9779,9 +10079,7 @@ URL.revokeObjectURL(link.href);
           this.stopBattleRecording({ keepCurrent: true });
           if (this.tournament && this.tournament.active) {
             this.resolveTournamentBattle();
-            this.tournament.breakTimer = 3;
             this.mode = MODES.TOURNAMENT_BREAK;
-            this.openTournamentOverlay();
           } else {
             const message = this.result.winner
               ? `${TEXT.winner}: ${this.result.winner.name}. ${TEXT.replay}`
@@ -9794,13 +10092,16 @@ URL.revokeObjectURL(link.href);
       }
 
       if (this.mode === MODES.TOURNAMENT_BREAK) {
-        if (this.tournament && this.tournament.active) {
+        if (this.tournament) {
           this.tournament.breakTimer -= dt;
           const remaining = Math.max(0, this.tournament.breakTimer);
-          this.ui.testStatus.textContent = `${this.tournament.breakMessage} Next fight in ${remaining.toFixed(1)}s`;
+          this.ui.testStatus.textContent = `${this.tournament.breakMessage} ${this.tournamentBreakCountdownText()} ${remaining.toFixed(1)}s`;
           if (this.tournament.breakTimer <= 0) {
-            this.closeTournamentOverlay();
-            this.startNextTournamentBattle();
+            if (this.tournament.autoRestartPending) {
+              this.restartTournamentLoop();
+            } else {
+              this.startNextTournamentBattle();
+            }
           }
         }
         return;
@@ -10043,6 +10344,10 @@ URL.revokeObjectURL(link.href);
       targetCtx.clearRect(0, 0, targetWidth, targetHeight);
       targetCtx.fillStyle = "#070b18";
       targetCtx.fillRect(0, 0, targetWidth, targetHeight);
+      targetCtx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in targetCtx) {
+        targetCtx.imageSmoothingQuality = "high";
+      }
 
       targetCtx.save();
       targetCtx.translate(offsetX, offsetY);
@@ -10408,26 +10713,29 @@ URL.revokeObjectURL(link.href);
       ctx.save();
       const statusText = fighter.statusList.map((key) => TEXT.statuses[key] || key).join(" | ");
       const panelWidth = 380;
-      const panelHeight = statusText ? 58 : 42;
+      const panelHeight = statusText ? 72 : 54;
       const panelX = align === "left" ? 12 : WIDTH - panelWidth - 12;
       const panelY = HEIGHT - panelHeight - 72;
 
-      ctx.fillStyle = "rgba(6, 10, 18, 0.88)";
+      ctx.fillStyle = "rgba(4, 8, 16, 0.94)";
       ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+      ctx.lineWidth = 2;
       ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
 
       const textX = align === "left" ? panelX + 18 : panelX + panelWidth - 18;
       ctx.textAlign = align;
       ctx.textBaseline = "top";
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 20px Consolas, monospace";
-      ctx.fillText(`${fighter.side === "left" ? TEXT.hpLeft : TEXT.hpRight}: ${Math.ceil(fighter.hp)}`, textX, panelY + 10);
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 6;
+      ctx.font = "bold 24px Consolas, monospace";
+      ctx.fillText(`${fighter.side === "left" ? TEXT.hpLeft : TEXT.hpRight}: ${Math.ceil(fighter.hp)}`, textX, panelY + 11);
 
-      ctx.fillStyle = statusText ? "#aeb8ca" : "#7ec3ff";
-      ctx.font = "14px Consolas, monospace";
-      ctx.fillText(statusText || TEXT.ready, textX, panelY + 32);
+      ctx.fillStyle = statusText ? "#c2d5f5" : "#7ec3ff";
+      ctx.shadowBlur = 4;
+      ctx.font = "bold 17px Consolas, monospace";
+      ctx.fillText(statusText || TEXT.ready, textX, panelY + 42);
       ctx.restore();
     }
 
@@ -10457,15 +10765,16 @@ URL.revokeObjectURL(link.href);
         ctx.restore();
       }
 
-      if (this.mode === MODES.TOURNAMENT_BREAK && this.tournament && this.tournament.active) {
+      if (this.mode === MODES.TOURNAMENT_BREAK && this.tournament) {
         ctx.save();
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffd978";
-        ctx.font = "bold 20px Consolas, monospace";
+        ctx.font = "bold 22px Consolas, monospace";
         ctx.fillText(this.tournament.breakMessage || "Tournament break", WIDTH / 2, 82);
+        this.drawTournamentBreakScene(ctx);
         ctx.fillStyle = "#dfe8ff";
-        ctx.font = "bold 16px Consolas, monospace";
-        ctx.fillText(`Next fight in ${Math.max(0, this.tournament.breakTimer).toFixed(1)}s`, WIDTH / 2, 108);
+        ctx.font = "bold 17px Consolas, monospace";
+        ctx.fillText(`${this.tournamentBreakCountdownText()} ${Math.max(0, this.tournament.breakTimer).toFixed(1)}s`, WIDTH / 2, 124);
         ctx.restore();
       }
     }
