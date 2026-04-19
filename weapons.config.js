@@ -1,9 +1,9 @@
 (function () {
   "use strict";
 
-  // Конфигурация баланса и оружия.
-  // Изменяй значения в секции weapons.
-  // Для изменения значений id смотри в конфигурации в app.js.
+  // Balance and weapon configuration.
+  // Modify values in the weapons section.
+  // For changing id values, see the configuration in app.js.
   window.GAME_WEAPON_CONFIG = {
   "balance": {
     "damageScale": 1.02,
@@ -48,153 +48,153 @@
   "legacyWeaponLibrary": {
     "rail": {
       "id": "rail",
-      "title": "Рельсы",
-      "description": "Прокладывает путь после ударов о стены и выпускает вагонетки."
+      "title": "Rails",
+      "description": "Lays track after wall hits and launches minecarts."
     },
     "boat": {
       "id": "boat",
-      "title": "Лодка + Вёдра",
-      "description": "Бронированный корпус с чередованием ледяных и лавовых вёдер."
+      "title": "Boat + Buckets",
+      "description": "Armored hull with alternating ice and lava buckets."
     }
   },
   "weapons": [
     {
       "id": "rail",
-      "title": "Рельсы",
-      "description": "Прокладывает путь после ударов о стены и выпускает вагонетки.",
+      "title": "Rails",
+      "description": "Lays track after wall hits and launches minecarts.",
       "badge": "RL",
       "color": "#f7d98d",
       "balanceBias": 0.18,
-      "category": "Наследие",
+      "category": "Legacy",
       "speedMin": 320.0,
       "speedMax": 380.0
     },
     {
       "id": "boat",
-      "title": "Лодка",
-      "description": "Бронированный корпус с чередованием ледяных и лавовых вёдер.",
+      "title": "Boat",
+      "description": "Armored hull with alternating ice and lava buckets.",
       "badge": "BT",
       "color": "#8fd6ff",
       "balanceBias": 0.00,
-      "category": "Наследие",
+      "category": "Legacy",
       "speedMin": 280.0,
       "speedMax": 340.0
     },
     {
       "id": "pacifist",
-      "title": "Без оружия",
-      "description": "Пассивный шар: не атакует и не наносит урон.",
+      "title": "No Weapon",
+      "description": "Passive ball: does not attack and deals no damage.",
       "badge": "NW",
       "color": "#b9c2d9",
-      "category": "Ребаланс",
+      "category": "Rebalance",
       "speedMin": 300.0,
       "speedMax": 360.0
     },
     {
       "id": "fishingRod",
-      "title": "Удочка",
-      "description": "Цепляет врага леской или подтягивает владельца к стене.",
+      "title": "Fishing Rod",
+      "description": "Hooks the enemy with a line or pulls the owner to the wall.",
       "badge": "FR",
       "color": "#9fd0ff",
       "balanceBias": 0.07,
-      "category": "Инструменты"
+      "category": "Tools",
     },
     {
       "id": "loyaltyTrident",
-      "title": "Трезубец Лояльности",
-      "description": "Тяжёлый бросок, который всегда возвращается к владельцу.",
+      "title": "Loyalty Trident",
+      "description": "Heavy throw that always returns to the owner.",
       "badge": "TR",
       "color": "#6de4ff",
       "balanceBias": 0.02,
-      "category": "Инструменты"
+      "category": "Tools"
     },
     {
       "id": "waterBucket",
-      "title": "Ведро воды",
-      "description": "Заливает арену, тормозит врагов и тушит огонь.",
+      "title": "Water Bucket",
+      "description": "Floods the arena, slows enemies and extinguishes fire.",
       "badge": "WB",
       "color": "#6fb8ff",
       "balanceBias": -0.05,
-      "category": "Инструменты"
+      "category": "Tools"
     },
     {
       "id": "lavaBucket",
-      "title": "Ведро лавы",
-      "description": "Создаёт раскалённую зону и карает за ближнее давление.",
+      "title": "Lava Bucket",
+      "description": "Creates a scorching zone and punishes close pressure.",
       "badge": "LB",
       "color": "#ff8b54",
       "balanceBias": 0.08,
-      "category": "Инструменты"
+      "category": "Tools"
     },
     {
       "id": "snowball",
-      "title": "Снежки",
-      "description": "Очереди замораживающих выстрелов, которые сбивают комбо.",
+      "title": "Snowballs",
+      "description": "Bursts of freezing shots that break combos.",
       "badge": "SN",
       "color": "#dff8ff",
       "balanceBias": 0.10,
-      "category": "Инструменты"
+      "category": "Tools"
     },
     {
       "id": "flintSteel",
-      "title": "Огниво",
-      "description": "Расползание огня по полу и выжигание маршрутов.",
+      "title": "Flint and Steel",
+      "description": "Fire spreads across the floor and burns paths.",
       "badge": "FS",
       "color": "#ffb46e",
       "balanceBias": -0.60,
-      "category": "Инструменты",
+      "category": "Tools",
       "damageMultiplier": 8.0
     },
     {
       "id": "expBottle",
-      "title": "Пузырёк опыта",
-      "description": "Разбрасывает сферы опыта для зарядки зачарования.",
+      "title": "Experience Bottle",
+      "description": "Scatters experience orbs to charge enchantments.",
       "badge": "XP",
       "color": "#9c86ff",
       "balanceBias": -0.08,
-      "category": "Алхимия",
+      "category": "Alchemy",
       "damageMultiplier": 0.35
     },
     {
       "id": "totem",
-      "title": "Тотем",
-      "description": "Одна экстренная вторая жизнь с окном контратаки.",
+      "title": "Totem",
+      "description": "One emergency second life with a counterattack window.",
       "badge": "TT",
       "color": "#9ff39f",
       "balanceBias": 0.01,
-      "category": "Магия"
+      "category": "Magic"
     },
     {
       "id": "hopperMinecart",
-      "title": "Вагонетка с воронкой",
-      "description": "Крадёт здоровье, баффы и заряд у врага рядом.",
+      "title": "Hopper Minecart",
+      "description": "Steals health, buffs and charge from nearby enemy.",
       "badge": "HC",
       "color": "#c9c2a9",
       "balanceBias": -0.02,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "tnt",
-      "title": "ТНТ",
-      "description": "Ставит взрывчатку с таймером и чистит арену.",
+      "title": "TNT",
+      "description": "Places timed explosives and clears the arena.",
       "badge": "TN",
       "color": "#ff7878",
       "balanceBias": -0.08,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "slimePiston",
-      "title": "Слизневый поршень",
-      "description": "Толкает врага липким поршнем или даёт отскок владельцу.",
+      "title": "Slime Piston",
+      "description": "Pushes enemy with sticky piston or gives bounce to owner.",
       "badge": "SP",
       "color": "#7cff99",
       "balanceBias": 0.00,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "observer",
-      "title": "Наблюдатель",
-      "description": "Считывает действия врага и бьёт импульсами срыва.",
+      "title": "Observer",
+      "description": "Reads enemy actions and strikes with disruption pulses.",
       "badge": "OB",
       "color": "#b7c7ff",
       "balanceBias": 0.08,
@@ -202,155 +202,155 @@
     },
     {
       "id": "beehive",
-      "title": "Улей",
-      "description": "Призывает пчёл, медовые зоны и паникующий рой.",
+      "title": "Beehive",
+      "description": "Summons bees, honey zones and a panicking swarm.",
       "badge": "BH",
       "color": "#ffd45c",
       "balanceBias": 0.00,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "noteBlock",
-      "title": "Нотный блок",
-      "description": "Удары о стены рождают волны музыки и ломают контроль.",
+      "title": "Note Block",
+      "description": "Wall hits generate music waves and break control.",
       "badge": "NB",
       "color": "#ffc18a",
       "balanceBias": 0.12,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "shulkerBox",
-      "title": "Шалкеровый ящик",
-      "description": "Собирает снаряды и телепортирует владельца от тяжёлых ударов.",
+      "title": "Shulker Box",
+      "description": "Collects projectiles and teleports owner from heavy hits.",
       "badge": "SB",
       "color": "#d3a7ff",
       "balanceBias": -0.50,
-      "category": "Механизмы",
+      "category": "Mechanisms",
       "damageMultiplier": 0.3
     },
     {
       "id": "respawnAnchor",
-      "title": "Якорь возрождения",
-      "description": "Ставит точку возврата и спасает резким скачком.",
+      "title": "Respawn Anchor",
+      "description": "Sets a respawn point and saves with a sharp jump.",
       "badge": "RA",
       "color": "#b978ff",
       "balanceBias": 0.14,
-      "category": "Механизмы"
+      "category": "Mechanisms"
     },
     {
       "id": "enderPearl",
-      "title": "Жемчуг Края",
-      "description": "Телепортирует сквозь опасность и за спину врага.",
+      "title": "Ender Pearl",
+      "description": "Teleports through danger and behind the enemy.",
       "badge": "EP",
       "color": "#9f7cff",
       "balanceBias": -0.03,
-      "category": "Измерения"
+      "category": "Dimensions"
     },
     {
       "id": "cryingObsidian",
-      "title": "Плачущий обсидиан",
-      "description": "Стелет лужи против рычков и искривляет арену порталами.",
+      "title": "Crying Obsidian",
+      "description": "Spreads pools against knockback and warps the arena with portals.",
       "badge": "CO",
       "color": "#7e5dff",
       "balanceBias": -0.18,
-      "category": "Измерения",
+      "category": "Dimensions",
       "damageMultiplier": 0.35
     },
     {
       "id": "blazeRod",
-      "title": "Огненный стержень",
-      "description": "Тройные файерболлы и возвращающееся огненное кольцо.",
+      "title": "Blaze Rod",
+      "description": "Triple fireballs and a returning fire ring.",
       "badge": "BR",
       "color": "#ffbd66",
       "balanceBias": -0.38,
-      "category": "Измерения",
+      "category": "Dimensions",
       "damageMultiplier": 0.15
     },
     {
       "id": "rottenFlesh",
-      "title": "Гнилая плоть",
-      "description": "Приводит зомби на арену и заражает поле боя.",
+      "title": "Rotten Flesh",
+      "description": "Brings zombies to the arena and infects the battlefield.",
       "badge": "RF",
       "color": "#9dba76",
       "balanceBias": 0.35,
-      "category": "Магия",
+      "category": "Magic",
       "damageMultiplier": 1.8
     },
     {
       "id": "jackOLantern",
-      "title": "Светильник Джека",
-      "description": "Ставит световые ловушки и пугает врага вспышками.",
+      "title": "Jack O'Lantern",
+      "description": "Sets light traps and frightens enemy with flashes.",
       "badge": "JL",
       "color": "#ffb657",
       "balanceBias": 0.40,
-      "category": "Магия"
+      "category": "Magic"
     },
     {
       "id": "boneMeal",
-      "title": "Костная мука",
-      "description": "Выращивает случайный рельеф и опутывает цель.",
+      "title": "Bone Meal",
+      "description": "Grows random terrain and ensnares the target.",
       "badge": "BM",
       "color": "#f3f0df",
       "balanceBias": -0.10,
-      "category": "Магия",
+      "category": "Magic",
       "damageMultiplier": 5.0
     },
     {
       "id": "bookQuill",
-      "title": "Книга с пером",
-      "description": "Запоминает вражеские умения и отвечает эхом.",
+      "title": "Book and Quill",
+      "description": "Remembers enemy abilities and echoes back.",
       "badge": "BQ",
       "color": "#ffdca8",
       "balanceBias": -0.10,
-      "category": "Магия"
+      "category": "Magic"
     },
     {
       "id": "elytra",
-      "title": "Элитры",
-      "description": "Преобразуют скорость в планирование и пикирующие тараны.",
+      "title": "Elytra",
+      "description": "Converts speed to gliding and dive bombs.",
       "badge": "EL",
       "color": "#dbe7f9",
       "balanceBias": 0.10,
-      "category": "Измерения",
+      "category": "Dimensions",
       "damageMultiplier": 1.5
     },
     {
       "id": "goldenApple",
-      "title": "Золотое яблоко",
-      "description": "Даёт регенерацию в момент давления.",
+      "title": "Golden Apple",
+      "description": "Grants regeneration under pressure.",
       "badge": "GA",
       "color": "#ffd757",
       "balanceBias": -0.06,
-      "category": "Алхимия"
+      "category": "Alchemy"
     },
     {
       "id": "invisPotion",
-      "title": "Невидимость",
-      "description": "Позволяет скрываться, пройти сквозь врага и сменить позицию.",
+      "title": "Invisibility",
+      "description": "Allows hiding, phasing through enemy and repositioning.",
       "badge": "IV",
       "color": "#d6c9ff",
       "balanceBias": 0.03,
-      "category": "Алхимия",
+      "category": "Alchemy",
       "damageMultiplier": 1.5
     },
     {
       "id": "gravityPotion",
-      "title": "Зелье гравитации",
-      "description": "Поднимает врага в воздух или облегчает владельца.",
+      "title": "Gravity Potion",
+      "description": "Lifts enemy into the air or lightens the owner.",
       "badge": "GP",
       "color": "#b8d5ff",
       "balanceBias": 0.09,
-      "category": "Алхимия",
+      "category": "Alchemy",
       "damageMultiplier": 2.5
     },
     {
       "id": "turtlePotion",
-      "title": "Черепашье зелье",
-      "description": "Сильно режет входящий урон и даёт панцирный рычок.",
+      "title": "Turtle Potion",
+      "description": "Greatly reduces incoming damage and gives shell knockback.",
       "badge": "TP",
       "color": "#7be2b2",
       "balanceBias": 0.12,
-      "category": "Алхимия"
+      "category": "Alchemy"
     }
   ]
 };

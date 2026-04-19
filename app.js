@@ -19,8 +19,8 @@
   const RECORDING_VIDEO_BITRATE = 8000000;
   const RECORDING_AUDIO_BITRATE = 160000;
 
-  // Положи пользовательские фоны в ./backgrounds/.
-  // Положи пользовательские спрайты в ./sprites/.
+  // Put custom backgrounds in ./backgrounds/.
+  // Put custom sprites in ./sprites/.
   const CUSTOM_ASSETS = {
     backgroundCandidates: [
       "./backgrounds/custom.png",
