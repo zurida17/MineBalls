@@ -2,9 +2,9 @@
   "use strict";
 
   const WIDTH = 900;
-  const HEIGHT = 900;
-  const HUD_TOP = 66;
-  const HUD_BOTTOM = 66;
+  const HEIGHT = 1600;
+  const HUD_TOP = 416;
+  const HUD_BOTTOM = 416;
   const ARENA = {
     x: 66,
     y: HUD_TOP,
@@ -8166,6 +8166,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
   class Game {
     constructor(canvas, ui) {
       this.canvas = canvas;
+      this.canvas.width = WIDTH;
+      this.canvas.height = HEIGHT;
       this.ctx = canvas.getContext("2d");
       this.ui = ui;
       this.mode = MODES.MENU;
