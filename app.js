@@ -8907,13 +8907,24 @@ downloadBattleRecording() {
     }
 
     renderRecordingFrame() {
-      // When using direct rendering, the recording canvas is already rendered
-      // This function now just ensures the stream gets the latest frame
-      if (!this.recordingActive || !this.recordingCanvas) {
+      if (!this.recordingActive || !this.recordingCtx || !this.recordingCanvas) {
         return;
       }
-      // The canvas is already rendered by renderToCanvas() during recording
-      // No additional drawing needed here
+      const ctx = this.recordingCtx;
+      const targetWidth = this.recordingCanvas.width;
+      const targetHeight = this.recordingCanvas.height;
+      const sourceWidth = WIDTH;
+      const sourceHeight = HEIGHT;
+      const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+      const drawWidth = Math.round(sourceWidth * scale);
+      const drawHeight = Math.round(sourceHeight * scale);
+      const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
+      const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
+
+      ctx.fillStyle = "#070b18";
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.canvas, 0, 0, sourceWidth, sourceHeight, offsetX, offsetY, drawWidth, drawHeight);
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
@@ -9625,16 +9636,8 @@ URL.revokeObjectURL(link.href);
         return;
       }
       this.update(dt);
-
-      // During recording, render directly to recording canvas for better performance
-      if (this.recordingActive && this.recordingCtx) {
-        this.renderToCanvas(this.recordingCtx, this.recordingCanvas.width, this.recordingCanvas.height);
-        this.renderRecordingFrame(); // Just copy to the stream
-      } else {
-        this.render();
-        this.renderRecordingFrame();
-      }
-
+      this.render();
+      this.renderRecordingFrame();
       requestAnimationFrame((time) => this.frame(time));
     }
 
