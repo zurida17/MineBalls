@@ -9146,9 +9146,35 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.syncRecordingButtons();
     }
 
+    ensureRecordingCanvas() {
+      if (this.recordingCanvas && this.recordingCtx) {
+        return;
+      }
+      this.recordingCanvas = document.createElement("canvas");
+      this.recordingCanvas.width = RECORDING_SIZE.width;
+      this.recordingCanvas.height = RECORDING_SIZE.height;
+      this.recordingCanvas.style.position = "absolute";
+      this.recordingCanvas.style.top = "0";
+      this.recordingCanvas.style.left = "0";
+      this.recordingCanvas.style.width = "1px";
+      this.recordingCanvas.style.height = "1px";
+      this.recordingCanvas.style.pointerEvents = "none";
+      this.recordingCanvas.style.opacity = "0";
+      document.body.appendChild(this.recordingCanvas);
+      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false });
+      if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
+        this.recordingCtx.imageSmoothingQuality = "high";
+      }
+    }
+
     createRecordingStream() {
+      this.ensureRecordingCanvas();
       if (!this.recordingCanvas || typeof this.recordingCanvas.captureStream !== "function") {
         console.warn("Recording stream unavailable: captureStream not supported on this canvas.");
+        return null;
+      }
+      if (!this.recordingCtx) {
+        console.warn("Recording canvas context unavailable.");
         return null;
       }
       // Draw initial frame to ensure canvas is ready
@@ -9186,11 +9212,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
         });
       }
       this.recordingStream = null;
-      if (this.recordingCanvas && this.recordingCanvas.parentNode) {
-        this.recordingCanvas.parentNode.removeChild(this.recordingCanvas);
-      }
-      this.recordingCanvas = null;
-      this.recordingCtx = null;
       this.recordingVideoTrack = null;
     }
 
