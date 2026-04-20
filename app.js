@@ -15,8 +15,8 @@
     width: 2160,
     height: 3840,
   };
-  const RECORDING_FPS = 60;
-  const RECORDING_VIDEO_BITRATE = 24000000;
+  const RECORDING_FPS = 24; // lower export FPS for smoother encoding on weaker machines
+  const RECORDING_VIDEO_BITRATE = 22000000;
   const RECORDING_AUDIO_BITRATE = 192000;
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
 
@@ -9128,9 +9128,13 @@ function updatePreviewElytra(weapon, dt, enemy) {
         this.ui.downloadBattleButton.disabled = true;
         return;
       }
-      this.recordingCanvas = document.createElement("canvas");
-      this.recordingCanvas.width = RECORDING_SIZE.width;
-      this.recordingCanvas.height = RECORDING_SIZE.height;
+      if (typeof OffscreenCanvas !== "undefined") {
+        this.recordingCanvas = new OffscreenCanvas(RECORDING_SIZE.width, RECORDING_SIZE.height);
+      } else {
+        this.recordingCanvas = document.createElement("canvas");
+        this.recordingCanvas.width = RECORDING_SIZE.width;
+        this.recordingCanvas.height = RECORDING_SIZE.height;
+      }
       this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
       if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
         this.recordingCtx.imageSmoothingQuality = "high";
@@ -9139,7 +9143,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
 
     createRecordingStream() {
-      if (!this.recordingCanvas) {
+      if (!this.recordingCanvas || typeof this.recordingCanvas.captureStream !== "function") {
+        console.warn("Recording stream unavailable: captureStream not supported on this canvas.");
         return null;
       }
       const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
@@ -9398,21 +9403,34 @@ startBattleRecording() {
           skipAudio: false,
           seed: captureMeta.seed,
         });
-        for (const dtRaw of captureDts) {
-          const dt = clamp(dtRaw || 0, 0, 0.033);
-          this.update(dt);
+        const frameCount = captureDts.length;
+        const replayDt = 1 / RECORDING_FPS;
+        for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+          const frameStart = performance.now();
+          this.update(replayDt);
           this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
           if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          await new Promise((resolve) => setTimeout(resolve, RECORDING_EXPORT_FRAME_MS));
+          const elapsed = performance.now() - frameStart;
+          const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (frameIndex % 3 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
         for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold += 1) {
+          const frameStart = performance.now();
           this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
           if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          await new Promise((resolve) => setTimeout(resolve, RECORDING_EXPORT_FRAME_MS));
+          const elapsed = performance.now() - frameStart;
+          const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (hold % 3 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
       } catch (error) {
         console.error("Deferred recording export failed:", error);
@@ -10486,6 +10504,21 @@ URL.revokeObjectURL(link.href);
       const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
       const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
 
+      const lowQualityPreview = targetCtx === this.ctx && this.recordingCaptureActive;
+      if (lowQualityPreview) {
+        targetCtx.clearRect(0, 0, targetWidth, targetHeight);
+        targetCtx.fillStyle = "#020612";
+        targetCtx.fillRect(0, 0, targetWidth, targetHeight);
+        targetCtx.fillStyle = "#f5f7ff";
+        targetCtx.font = "28px Consolas, monospace";
+        targetCtx.textAlign = "center";
+        targetCtx.textBaseline = "middle";
+        targetCtx.fillText("Recording for 4K export...", targetWidth / 2, targetHeight / 2 - 18);
+        targetCtx.font = "18px Consolas, monospace";
+        targetCtx.fillText("Live preview disabled for smooth capture.", targetWidth / 2, targetHeight / 2 + 18);
+        return;
+      }
+
       targetCtx.clearRect(0, 0, targetWidth, targetHeight);
       targetCtx.fillStyle = "#070b18";
       targetCtx.fillRect(0, 0, targetWidth, targetHeight);
@@ -10521,11 +10554,13 @@ URL.revokeObjectURL(link.href);
       }
 
       this.drawFighters(targetCtx);
-      for (const particle of this.particles) {
-        particle.draw(targetCtx);
-      }
-      for (const text of this.texts) {
-        text.draw(targetCtx);
+      if (!lowQualityPreview) {
+        for (const particle of this.particles) {
+          particle.draw(targetCtx);
+        }
+        for (const text of this.texts) {
+          text.draw(targetCtx);
+        }
       }
 
       targetCtx.restore();
