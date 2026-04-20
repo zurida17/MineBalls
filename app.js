@@ -8345,12 +8345,15 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingEnabled = false;
       this.recordingActive = false;
       this.recordingSupported = typeof MediaRecorder !== "undefined" && typeof this.canvas.captureStream === "function";
+      this.recordingUseWebCodecs = typeof VideoEncoder !== "undefined";
       this.recordingStream = null;
       this.recordingCanvas = null;
       this.recordingCtx = null;
       this.recordingBufferCanvas = null;
       this.recordingBufferCtx = null;
       this.recorder = null;
+      this.videoEncoder = null;
+      this.audioEncoder = null;
       this.recordedChunks = [];
       this.recordingBlob = null;
       this.recordingUrl = "";
@@ -9354,78 +9357,150 @@ startBattleRecording() {
 
     startRecordingEncoderSession() {
       this.releaseRecordingStream();
-      this.recordingStream = this.createRecordingStream();
-      if (!this.recordingStream) {
-        console.warn("Failed to create recording stream.");
-        return null;
-      }
-      const recordingConfig = this.getRecordingConfig();
-      this.recordingMime = recordingConfig.mimeType;
-      this.recordingExtension = recordingConfig.extension;
       this.recordedChunks = [];
       this.recordingBlob = null;
 
-      const options = {
-        videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
-        audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
-      };
-      if (this.recordingMime) {
-        options.mimeType = this.recordingMime;
-      }
+      if (this.recordingUseWebCodecs) {
+        // Use WebCodecs for better performance on weak PCs
+        return this.startWebCodecsRecording();
+      } else {
+        // Fallback to MediaRecorder
+        this.recordingStream = this.createRecordingStream();
+        if (!this.recordingStream) {
+          console.warn("Failed to create recording stream.");
+          return null;
+        }
+        const recordingConfig = this.getRecordingConfig();
+        this.recordingMime = recordingConfig.mimeType;
+        this.recordingExtension = recordingConfig.extension;
 
-      try {
-        this.recorder = new MediaRecorder(this.recordingStream, options);
-      } catch (error) {
-        console.warn("Failed to start recording with selected mimeType, switching to browser default.", error);
-        this.recordingMime = "";
-        this.recordingExtension = "webm";
-        this.recorder = new MediaRecorder(this.recordingStream, {
+        const options = {
           videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
           audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
+        };
+        if (this.recordingMime) {
+          options.mimeType = this.recordingMime;
+        }
+
+        try {
+          this.recorder = new MediaRecorder(this.recordingStream, options);
+        } catch (error) {
+          console.warn("Failed to start recording with selected mimeType, switching to browser default.", error);
+          this.recordingMime = "";
+          this.recordingExtension = "webm";
+          this.recorder = new MediaRecorder(this.recordingStream, {
+            videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
+            audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
+          });
+        }
+
+        let resolveStop = () => {};
+        const stopped = new Promise((resolve) => {
+          resolveStop = resolve;
         });
+
+        this.recorder.onerror = (e) => {
+          console.error("MediaRecorder error:", e);
+          this.recordingActive = false;
+          this.releaseRecordingStream();
+          this.recorder = null;
+          this.recordingExportActive = false;
+          this.recordingReplayInProgress = false;
+          this.syncRecordingButtons();
+          resolveStop();
+        };
+        this.recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            this.recordedChunks.push(event.data);
+          }
+        };
+        this.recorder.onstop = () => {
+          if (this.recordedChunks.length) {
+            if (this.recordingUrl) {
+              URL.revokeObjectURL(this.recordingUrl);
+            }
+            const mime = this.recordingMime || this.recordedChunks[0].type || "video/webm";
+            const blob = new Blob(this.recordedChunks, { type: mime });
+            this.recordingBlob = blob;
+            this.recordingMime = blob.type || mime;
+            this.recordingExtension = this.getRecordingExtension(this.recordingMime);
+            this.recordingUrl = URL.createObjectURL(blob);
+          } else {
+            console.warn("No MediaRecorder data was recorded.");
+          }
+          this.releaseRecordingStream();
+          this.recorder = null;
+          this.syncRecordingButtons();
+          resolveStop();
+        };
+        this.recorder.start(1000);
+        return stopped;
       }
+    }
+
+    startWebCodecsRecording() {
+      this.recordingMime = 'video/webm;codecs=vp9';
+      this.recordingExtension = 'webm';
 
       let resolveStop = () => {};
       const stopped = new Promise((resolve) => {
         resolveStop = resolve;
       });
 
-      this.recorder.onerror = (e) => {
-        console.error("MediaRecorder error:", e);
-        this.recordingActive = false;
-        this.releaseRecordingStream();
-        this.recorder = null;
-        this.recordingExportActive = false;
-        this.recordingReplayInProgress = false;
-        this.syncRecordingButtons();
-        resolveStop();
+      // Video Encoder
+      const videoConfig = {
+        codec: 'vp09.00.10.08', // VP9
+        width: RECORDING_SIZE.width,
+        height: RECORDING_SIZE.height,
+        bitrate: RECORDING_VIDEO_BITRATE,
+        framerate: RECORDING_FPS,
       };
-      this.recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-      };
-      this.recorder.onstop = () => {
-        if (this.recordedChunks.length) {
-          if (this.recordingUrl) {
-            URL.revokeObjectURL(this.recordingUrl);
+
+      this.videoEncoder = new VideoEncoder({
+        output: (chunk, metadata) => {
+          if (metadata.decoderConfig) {
+            this.recordedChunks.push(metadata.decoderConfig);
           }
-          const mime = this.recordingMime || this.recordedChunks[0].type || "video/webm";
-          const blob = new Blob(this.recordedChunks, { type: mime });
-          this.recordingBlob = blob;
-          this.recordingMime = blob.type || mime;
-          this.recordingExtension = this.getRecordingExtension(this.recordingMime);
-          this.recordingUrl = URL.createObjectURL(blob);
-        } else {
-          console.warn("No MediaRecorder data was recorded.");
-        }
-        this.releaseRecordingStream();
-        this.recorder = null;
-        this.syncRecordingButtons();
-        resolveStop();
-      };
-      this.recorder.start(1000);
+          this.recordedChunks.push(chunk);
+        },
+        error: (e) => {
+          console.error('VideoEncoder error:', e);
+          this.stopWebCodecsRecording();
+          resolveStop();
+        },
+      });
+
+      this.videoEncoder.configure(videoConfig);
+
+      // For now, skip audio to simplify
+      this.audioEncoder = null;
+
       return stopped;
+    }
+
+    async stopWebCodecsRecording() {
+      if (this.videoEncoder) {
+        await this.videoEncoder.flush();
+        this.videoEncoder.close();
+        this.videoEncoder = null;
+      }
+      if (this.audioEncoder) {
+        this.audioEncoder.close();
+        this.audioEncoder = null;
+      }
+      // Create MP4 blob from chunks
+      if (this.recordedChunks.length) {
+        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+        this.recordingBlob = blob;
+        this.recordingMime = 'video/webm';
+        this.recordingExtension = 'webm';
+        if (this.recordingUrl) {
+          URL.revokeObjectURL(this.recordingUrl);
+        }
+        this.recordingUrl = URL.createObjectURL(blob);
+      }
+      this.recordedChunks = [];
+      this.syncRecordingButtons();
     }
 
     async exportCapturedBattle() {
@@ -9481,7 +9556,11 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
-          if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+          if (this.recordingUseWebCodecs && this.videoEncoder) {
+            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: frameIndex * RECORDING_EXPORT_FRAME_MS * 1000 });
+            this.videoEncoder.encode(frame);
+            frame.close();
+          } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
           const elapsed = performance.now() - exportStartTime;
@@ -9507,7 +9586,11 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
-          if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+          if (this.recordingUseWebCodecs && this.videoEncoder) {
+            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: (frameCount + hold) * RECORDING_EXPORT_FRAME_MS * 1000 });
+            this.videoEncoder.encode(frame);
+            frame.close();
+          } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
           const elapsed = performance.now() - exportStartTime;
@@ -9519,7 +9602,9 @@ startBattleRecording() {
       } catch (error) {
         console.error("Deferred recording export failed:", error);
       } finally {
-        if (this.recorder && this.recorder.state !== "inactive") {
+        if (this.recordingUseWebCodecs) {
+          await this.stopWebCodecsRecording();
+        } else if (this.recorder && this.recorder.state !== "inactive") {
           this.recorder.stop();
         }
         await stoppedPromise;
