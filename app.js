@@ -18,6 +18,22 @@
   const RECORDING_FPS = 60;
   const RECORDING_VIDEO_BITRATE = 24000000;
   const RECORDING_AUDIO_BITRATE = 192000;
+  const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
+
+  let RNG_STATE = (((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0);
+
+  function setRandomSeed(seed) {
+    RNG_STATE = ((seed >>> 0) || 1) >>> 0;
+  }
+
+  function randomUnit() {
+    RNG_STATE = (Math.imul(RNG_STATE, 1664525) + 1013904223) >>> 0;
+    return RNG_STATE / 4294967296;
+  }
+
+  function makeBattleSeed() {
+    return (((Date.now() >>> 0) ^ ((Math.random() * 4294967295) >>> 0)) >>> 0);
+  }
 
   // Put custom backgrounds in ./backgrounds/.
   // Put custom sprites in ./sprites/.
@@ -2218,11 +2234,11 @@ if (id === "snowball") {
   }
 
   function chance(probability) {
-    return Math.random() < probability;
+    return randomUnit() < probability;
   }
 
   function randomRange(min, max) {
-    return min + Math.random() * (max - min);
+    return min + randomUnit() * (max - min);
   }
 
   function randomInt(min, max) {
@@ -8326,13 +8342,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingStream = null;
       this.recordingCanvas = null;
       this.recordingCtx = null;
-      this.recordingRendererType = "2d";
-      this.recordingGl = null;
-      this.recordingGlProgram = null;
-      this.recordingGlTexture = null;
-      this.recordingGlBuffer = null;
-      this.recordingGlPositionLocation = -1;
-      this.recordingGlUvLocation = -1;
       this.recorder = null;
       this.recordedChunks = [];
       this.recordingBlob = null;
@@ -8340,8 +8349,12 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingMime = "";
       this.recordingExtension = "webm";
       this.recordingVideoTrack = null;
-      this.recordingFrameInterval = 1 / RECORDING_FPS;
-      this.recordingFrameAccumulator = 0;
+      this.recordingCaptureActive = false;
+      this.recordingCaptureDts = [];
+      this.recordingCaptureMeta = null;
+      this.recordingExportActive = false;
+      this.recordingReplayInProgress = false;
+      this.recordingPostResultMessage = "";
 
       this.buildSelectors();
       this.bindUi();
@@ -9118,119 +9131,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas = document.createElement("canvas");
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
-      if (!this.initRecordingWebGLRenderer()) {
-        this.recordingRendererType = "2d";
-        this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
-        if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
-          this.recordingCtx.imageSmoothingQuality = "high";
-        }
+      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
+      if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
+        this.recordingCtx.imageSmoothingQuality = "high";
       }
       this.syncRecordingButtons();
-    }
-
-    initRecordingWebGLRenderer() {
-      if (!this.recordingCanvas) {
-        return false;
-      }
-      const gl = this.recordingCanvas.getContext("webgl2", {
-        alpha: false,
-        antialias: false,
-        desynchronized: true,
-        powerPreference: "high-performance",
-        premultipliedAlpha: false,
-        preserveDrawingBuffer: false,
-      });
-      if (!gl) {
-        return false;
-      }
-      const vertexSrc = `#version 300 es
-in vec2 aPosition;
-in vec2 aUv;
-out vec2 vUv;
-void main() {
-  vUv = aUv;
-  gl_Position = vec4(aPosition, 0.0, 1.0);
-}`;
-      const fragmentSrc = `#version 300 es
-precision highp float;
-in vec2 vUv;
-uniform sampler2D uTexture;
-out vec4 outColor;
-void main() {
-  outColor = texture(uTexture, vUv);
-}`;
-      const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-      const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-      if (!vertexShader || !fragmentShader) {
-        return false;
-      }
-      gl.shaderSource(vertexShader, vertexSrc);
-      gl.compileShader(vertexShader);
-      if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-        console.warn("Recording WebGL vertex shader compilation failed:", gl.getShaderInfoLog(vertexShader));
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-        return false;
-      }
-      gl.shaderSource(fragmentShader, fragmentSrc);
-      gl.compileShader(fragmentShader);
-      if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-        console.warn("Recording WebGL fragment shader compilation failed:", gl.getShaderInfoLog(fragmentShader));
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-        return false;
-      }
-      const program = gl.createProgram();
-      if (!program) {
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-        return false;
-      }
-      gl.attachShader(program, vertexShader);
-      gl.attachShader(program, fragmentShader);
-      gl.linkProgram(program);
-      gl.deleteShader(vertexShader);
-      gl.deleteShader(fragmentShader);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.warn("Recording WebGL program link failed:", gl.getProgramInfoLog(program));
-        gl.deleteProgram(program);
-        return false;
-      }
-
-      const buffer = gl.createBuffer();
-      const texture = gl.createTexture();
-      if (!buffer || !texture) {
-        gl.deleteProgram(program);
-        return false;
-      }
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-          -1, -1, 0, 0,
-           1, -1, 1, 0,
-          -1,  1, 0, 1,
-           1,  1, 1, 1,
-        ]),
-        gl.STATIC_DRAW
-      );
-
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-      this.recordingRendererType = "webgl";
-      this.recordingCtx = null;
-      this.recordingGl = gl;
-      this.recordingGlProgram = program;
-      this.recordingGlTexture = texture;
-      this.recordingGlBuffer = buffer;
-      this.recordingGlPositionLocation = gl.getAttribLocation(program, "aPosition");
-      this.recordingGlUvLocation = gl.getAttribLocation(program, "aUv");
-      return true;
     }
 
     createRecordingStream() {
@@ -9292,11 +9197,18 @@ void main() {
         return;
       }
       const formatLabel = (this.recordingExtension || "webm").toUpperCase();
-      this.ui.recordBattleButton.textContent = this.recordingEnabled
-        ? `Recording ${formatLabel}: ON`
-        : `Recording ${formatLabel}: OFF`;
+      if (this.recordingExportActive) {
+        this.ui.recordBattleButton.textContent = `Recording ${formatLabel}: RENDERING...`;
+      } else if (this.recordingCaptureActive) {
+        this.ui.recordBattleButton.textContent = `Recording ${formatLabel}: CAPTURING`;
+      } else {
+        this.ui.recordBattleButton.textContent = this.recordingEnabled
+          ? `Recording ${formatLabel}: ON`
+          : `Recording ${formatLabel}: OFF`;
+      }
       this.ui.downloadBattleButton.textContent = `Download battle (.${this.recordingExtension || "webm"})`;
-      this.ui.downloadBattleButton.disabled = !this.recordingUrl;
+      this.ui.recordBattleButton.disabled = this.recordingExportActive;
+      this.ui.downloadBattleButton.disabled = !this.recordingUrl || this.recordingExportActive;
     }
 
     toggleRecordingEnabled() {
@@ -9304,8 +9216,8 @@ void main() {
         return;
       }
       this.recordingEnabled = !this.recordingEnabled;
-      if (!this.recordingEnabled && this.recordingActive) {
-        this.stopBattleRecording({ keepCurrent: true });
+      if (!this.recordingEnabled && this.recordingCaptureActive) {
+        this.stopBattleRecording({ keepCurrent: true, suppressExport: true });
       }
       AUDIO.init();
       AUDIO.resume();
@@ -9328,24 +9240,69 @@ void main() {
     }
 
 startBattleRecording() {
-      if (!this.recordingSupported || !this.recordingEnabled || this.recordingActive) {
+      if (!this.recordingSupported || !this.recordingEnabled || this.recordingCaptureActive || this.recordingExportActive) {
         return;
       }
-      AUDIO.init();
-      AUDIO.resume();
-      this.stopBattleRecording({ keepCurrent: false });
+      if (this.tournament && this.tournament.active) {
+        return;
+      }
+      this.stopBattleRecording({ keepCurrent: false, suppressExport: true });
+      if (!this.currentBattleMeta) {
+        return;
+      }
+      this.recordingCaptureMeta = {
+        leftWeaponId: this.currentBattleMeta.leftWeaponId,
+        rightWeaponId: this.currentBattleMeta.rightWeaponId,
+        seed: this.currentBattleMeta.seed,
+      };
+      this.recordingPostResultMessage = "";
+      this.recordingCaptureDts = [];
+      this.recordingCaptureActive = true;
+      this.recordingActive = true;
+      this.syncRecordingButtons();
+    }
+
+    stopBattleRecording(options = {}) {
+      const keepCurrent = options.keepCurrent !== false;
+      const suppressExport = options.suppressExport === true;
+      if (typeof options.resultMessage === "string") {
+        this.recordingPostResultMessage = options.resultMessage;
+      }
+      if (!keepCurrent && this.recordingUrl) {
+        URL.revokeObjectURL(this.recordingUrl);
+        this.recordingUrl = "";
+      }
+      if (!keepCurrent) {
+        this.recordingBlob = null;
+      }
+      const hadCapture = this.recordingCaptureActive;
+      this.recordingCaptureActive = false;
+      this.recordingActive = false;
+      if (
+        hadCapture &&
+        !suppressExport &&
+        !this.recordingExportActive &&
+        this.recordingCaptureMeta &&
+        this.recordingCaptureDts.length
+      ) {
+        void this.exportCapturedBattle();
+      }
+      this.syncRecordingButtons();
+    }
+
+    startRecordingEncoderSession() {
       this.releaseRecordingStream();
       this.recordingStream = this.createRecordingStream();
       if (!this.recordingStream) {
         console.warn("Failed to create recording stream.");
-        return;
+        return null;
       }
       const recordingConfig = this.getRecordingConfig();
       this.recordingMime = recordingConfig.mimeType;
       this.recordingExtension = recordingConfig.extension;
       this.recordedChunks = [];
       this.recordingBlob = null;
-      this.recordingFrameAccumulator = 0;
+
       const options = {
         videoBitsPerSecond: RECORDING_VIDEO_BITRATE,
         audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
@@ -9353,6 +9310,7 @@ startBattleRecording() {
       if (this.recordingMime) {
         options.mimeType = this.recordingMime;
       }
+
       try {
         this.recorder = new MediaRecorder(this.recordingStream, options);
       } catch (error) {
@@ -9364,12 +9322,21 @@ startBattleRecording() {
           audioBitsPerSecond: RECORDING_AUDIO_BITRATE,
         });
       }
+
+      let resolveStop = () => {};
+      const stopped = new Promise((resolve) => {
+        resolveStop = resolve;
+      });
+
       this.recorder.onerror = (e) => {
         console.error("MediaRecorder error:", e);
         this.recordingActive = false;
         this.releaseRecordingStream();
         this.recorder = null;
+        this.recordingExportActive = false;
+        this.recordingReplayInProgress = false;
         this.syncRecordingButtons();
+        resolveStop();
       };
       this.recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -9377,45 +9344,90 @@ startBattleRecording() {
         }
       };
       this.recorder.onstop = () => {
-        if (!this.recordedChunks.length) {
+        if (this.recordedChunks.length) {
+          if (this.recordingUrl) {
+            URL.revokeObjectURL(this.recordingUrl);
+          }
+          const mime = this.recordingMime || this.recordedChunks[0].type || "video/webm";
+          const blob = new Blob(this.recordedChunks, { type: mime });
+          this.recordingBlob = blob;
+          this.recordingMime = blob.type || mime;
+          this.recordingExtension = this.getRecordingExtension(this.recordingMime);
+          this.recordingUrl = URL.createObjectURL(blob);
+        } else {
           console.warn("No MediaRecorder data was recorded.");
-          return;
         }
-        if (this.recordingUrl) {
-          URL.revokeObjectURL(this.recordingUrl);
-        }
-        const mime = this.recordingMime || this.recordedChunks[0].type || "video/webm";
-        const blob = new Blob(this.recordedChunks, { type: mime });
-        this.recordingBlob = blob;
-        this.recordingMime = blob.type || mime;
-        this.recordingExtension = this.getRecordingExtension(this.recordingMime);
-        this.recordingUrl = URL.createObjectURL(blob);
         this.releaseRecordingStream();
         this.recorder = null;
         this.syncRecordingButtons();
+        resolveStop();
       };
-      this.recordingActive = true;
-      this.renderRecordingFrame();
       this.recorder.start(1000);
-      this.syncRecordingButtons();
+      return stopped;
     }
 
-    stopBattleRecording(options = {}) {
-      const keepCurrent = options.keepCurrent !== false;
-      if (!keepCurrent && this.recordingUrl) {
-        URL.revokeObjectURL(this.recordingUrl);
-        this.recordingUrl = "";
+    async exportCapturedBattle() {
+      if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCaptureDts.length || !this.recordingCtx) {
+        return;
       }
-      if (!keepCurrent) {
-        this.recordingBlob = null;
-      }
-      if (this.recorder && this.recorder.state !== "inactive") {
-        this.recorder.stop();
-      } else if (!this.recordingActive) {
-        this.releaseRecordingStream();
-      }
-      this.recordingActive = false;
+      const captureMeta = this.recordingCaptureMeta;
+      const captureDts = this.recordingCaptureDts.slice();
+      this.recordingCaptureMeta = null;
+      this.recordingCaptureDts = [];
+      this.recordingExportActive = true;
+      this.recordingReplayInProgress = true;
+      this.recordingActive = true;
       this.syncRecordingButtons();
+
+      const stoppedPromise = this.startRecordingEncoderSession();
+      if (!stoppedPromise) {
+        this.recordingExportActive = false;
+        this.recordingReplayInProgress = false;
+        this.recordingActive = false;
+        this.syncRecordingButtons();
+        return;
+      }
+
+      const finalMessage = this.recordingPostResultMessage || TEXT.choose;
+      try {
+        this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
+          countdown: false,
+          hideMenu: false,
+          skipRecording: true,
+          skipAudio: true,
+          seed: captureMeta.seed,
+        });
+        for (const dtRaw of captureDts) {
+          const dt = clamp(dtRaw || 0, 0, 0.033);
+          this.update(dt);
+          this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+            this.recordingVideoTrack.requestFrame();
+          }
+          await new Promise((resolve) => setTimeout(resolve, RECORDING_EXPORT_FRAME_MS));
+        }
+        for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold += 1) {
+          this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+            this.recordingVideoTrack.requestFrame();
+          }
+          await new Promise((resolve) => setTimeout(resolve, RECORDING_EXPORT_FRAME_MS));
+        }
+      } catch (error) {
+        console.error("Deferred recording export failed:", error);
+      } finally {
+        if (this.recorder && this.recorder.state !== "inactive") {
+          this.recorder.stop();
+        }
+        await stoppedPromise;
+        this.recordingReplayInProgress = false;
+        this.recordingExportActive = false;
+        this.recordingActive = false;
+        this.mode = MODES.MENU;
+        this.showMenu(finalMessage);
+        this.syncMenu();
+        this.syncRecordingButtons();
+      }
     }
 
 downloadBattleRecording() {
@@ -9430,86 +9442,6 @@ downloadBattleRecording() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    }
-
-    renderRecordingFrame() {
-      if (!this.recordingActive || !this.recordingCanvas) {
-        return;
-      }
-      if (this.recordingRendererType === "webgl") {
-        this.renderRecordingFrameWebGL();
-      } else {
-        this.renderRecordingFrame2D();
-      }
-      if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
-        this.recordingVideoTrack.requestFrame();
-      }
-    }
-
-    renderRecordingFrame2D() {
-      if (!this.recordingCtx || !this.recordingCanvas) {
-        return;
-      }
-      const ctx = this.recordingCtx;
-      const targetWidth = this.recordingCanvas.width;
-      const targetHeight = this.recordingCanvas.height;
-      const sourceWidth = WIDTH;
-      const sourceHeight = HEIGHT;
-      const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-      const drawWidth = Math.round(sourceWidth * scale);
-      const drawHeight = Math.round(sourceHeight * scale);
-      const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
-      const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
-
-      ctx.fillStyle = "#070b18";
-      ctx.fillRect(0, 0, targetWidth, targetHeight);
-      ctx.imageSmoothingEnabled = true;
-      if ("imageSmoothingQuality" in ctx) {
-        ctx.imageSmoothingQuality = "high";
-      }
-      ctx.drawImage(this.canvas, 0, 0, sourceWidth, sourceHeight, offsetX, offsetY, drawWidth, drawHeight);
-    }
-
-    renderRecordingFrameWebGL() {
-      const gl = this.recordingGl;
-      const program = this.recordingGlProgram;
-      const texture = this.recordingGlTexture;
-      const buffer = this.recordingGlBuffer;
-      if (!gl || !program || !texture || !buffer || !this.recordingCanvas) {
-        this.renderRecordingFrame2D();
-        return;
-      }
-      const targetWidth = this.recordingCanvas.width;
-      const targetHeight = this.recordingCanvas.height;
-      const sourceWidth = WIDTH;
-      const sourceHeight = HEIGHT;
-      const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-      const drawWidth = Math.round(sourceWidth * scale);
-      const drawHeight = Math.round(sourceHeight * scale);
-      const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
-      const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
-
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.canvas);
-
-      gl.viewport(0, 0, targetWidth, targetHeight);
-      gl.clearColor(0.027, 0.043, 0.094, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-
-      gl.viewport(offsetX, targetHeight - offsetY - drawHeight, drawWidth, drawHeight);
-      gl.useProgram(program);
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.enableVertexAttribArray(this.recordingGlPositionLocation);
-      gl.vertexAttribPointer(this.recordingGlPositionLocation, 2, gl.FLOAT, false, 16, 0);
-      gl.enableVertexAttribArray(this.recordingGlUvLocation);
-      gl.vertexAttribPointer(this.recordingGlUvLocation, 2, gl.FLOAT, false, 16, 8);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.disableVertexAttribArray(this.recordingGlPositionLocation);
-      gl.disableVertexAttribArray(this.recordingGlUvLocation);
-      gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      gl.useProgram(null);
-      gl.flush();
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
@@ -9611,15 +9543,21 @@ downloadBattleRecording() {
     }
 
     startBattle() {
+      if (this.recordingExportActive || this.recordingReplayInProgress) {
+        return;
+      }
       this.setupBattle(this.selected.left, this.selected.right, { countdown: true, hideMenu: true });
     }
 
     setupBattle(leftWeaponId, rightWeaponId, options = {}) {
       this.resetCollections();
       this.result = new ResultState();
+      const battleSeed = Number.isFinite(options.seed) ? (options.seed >>> 0) : makeBattleSeed();
+      setRandomSeed(battleSeed);
       this.currentBattleMeta = {
         leftWeaponId,
         rightWeaponId,
+        seed: battleSeed,
         startedAt: Date.now(),
       };
       this.mode = options.countdown === false ? MODES.FIGHT : MODES.COUNTDOWN;
@@ -9634,10 +9572,14 @@ downloadBattleRecording() {
       if (options.hideMenu !== false) {
         this.hideMenu();
       }
-      AUDIO.init();
-      AUDIO.resume();
-      this.startBattleRecording();
-      AUDIO.roundStart();
+      if (!options.skipAudio) {
+        AUDIO.init();
+        AUDIO.resume();
+        AUDIO.roundStart();
+      }
+      if (!options.skipRecording) {
+        this.startBattleRecording();
+      }
     }
 
     getSuddenDeathProgress() {
@@ -9801,7 +9743,13 @@ downloadBattleRecording() {
     }
 
     simulateBattle(leftWeaponId, rightWeaponId, options = {}) {
-      this.setupBattle(leftWeaponId, rightWeaponId, { countdown: false, hideMenu: false });
+      this.setupBattle(leftWeaponId, rightWeaponId, {
+        countdown: false,
+        hideMenu: false,
+        skipAudio: true,
+        skipRecording: true,
+        seed: Number.isFinite(options.seed) ? options.seed : makeBattleSeed(),
+      });
       const dt = options.dt || (1 / 30);
       const maxSteps = options.maxSteps || getSimulationMaxSteps(dt);
       const issues = [];
@@ -10215,23 +10163,21 @@ URL.revokeObjectURL(link.href);
     frame(timestamp) {
       const dt = clamp((timestamp - this.lastFrame) / 1000 || 0, 0, 0.033);
       this.lastFrame = timestamp;
+      if (this.recordingReplayInProgress) {
+        this.render();
+        requestAnimationFrame((time) => this.frame(time));
+        return;
+      }
       if (this.testRunning) {
         this.render();
-        if (this.recordingActive) {
-          this.renderRecordingFrame();
-        }
         requestAnimationFrame((time) => this.frame(time));
         return;
       }
       this.update(dt);
-      this.render();
-      if (this.recordingActive) {
-        this.recordingFrameAccumulator += dt;
-        if (this.recordingFrameAccumulator >= this.recordingFrameInterval) {
-          this.recordingFrameAccumulator %= this.recordingFrameInterval;
-          this.renderRecordingFrame();
-        }
+      if (this.recordingCaptureActive) {
+        this.recordingCaptureDts.push(dt);
       }
+      this.render();
       requestAnimationFrame((time) => this.frame(time));
     }
 
@@ -10271,16 +10217,19 @@ URL.revokeObjectURL(link.href);
       if (this.mode === MODES.RESULT) {
         this.result.timer -= dt;
         if (this.result.timer <= 0) {
-          this.stopBattleRecording({ keepCurrent: true });
           if (this.tournament && this.tournament.active) {
+            this.stopBattleRecording({ keepCurrent: true, suppressExport: true });
             this.resolveTournamentBattle();
             this.mode = MODES.TOURNAMENT_BREAK;
           } else {
             const message = this.result.winner
               ? `${TEXT.winner}: ${this.result.winner.name}. ${TEXT.replay}`
               : `${TEXT.draw}. ${TEXT.replay}`;
-            this.mode = MODES.MENU;
-            this.showMenu(message);
+            this.stopBattleRecording({ keepCurrent: true, resultMessage: message });
+            if (!this.recordingExportActive) {
+              this.mode = MODES.MENU;
+              this.showMenu(message);
+            }
           }
         }
         return;
