@@ -15,6 +15,11 @@
     width: 2160,
     height: 3840,
   };
+  const RECORDING_BUFFER_SCALE = 0.75;
+  const RECORDING_BUFFER_SIZE = {
+    width: Math.round(WIDTH * RECORDING_BUFFER_SCALE),
+    height: Math.round(HEIGHT * RECORDING_BUFFER_SCALE),
+  };
   const RECORDING_FPS = 30; // higher FPS for smoother video
   const RECORDING_VIDEO_BITRATE = 15000000; // 15Mbps for 4K at 30fps
   const RECORDING_AUDIO_BITRATE = 192000;
@@ -9171,8 +9176,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
       }
       if (!this.recordingBufferCanvas) {
         this.recordingBufferCanvas = document.createElement("canvas");
-        this.recordingBufferCanvas.width = WIDTH;
-        this.recordingBufferCanvas.height = HEIGHT;
+        this.recordingBufferCanvas.width = RECORDING_BUFFER_SIZE.width;
+        this.recordingBufferCanvas.height = RECORDING_BUFFER_SIZE.height;
         this.recordingBufferCtx = this.recordingBufferCanvas.getContext("2d", { alpha: false });
         if (this.recordingBufferCtx && "imageSmoothingQuality" in this.recordingBufferCtx) {
           this.recordingBufferCtx.imageSmoothingQuality = "high";
@@ -9462,14 +9467,14 @@ startBattleRecording() {
       for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
           const frameStart = performance.now();
           this.update(replayDt);
-          this.renderToCanvas(this.recordingBufferCtx, WIDTH, HEIGHT);
+          this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
           this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
           this.recordingCtx.drawImage(
             this.recordingBufferCanvas,
             0,
             0,
-            WIDTH,
-            HEIGHT,
+            RECORDING_BUFFER_SIZE.width,
+            RECORDING_BUFFER_SIZE.height,
             0,
             0,
             RECORDING_SIZE.width,
@@ -9488,14 +9493,14 @@ startBattleRecording() {
         }
         console.log("Exporting hold frames");
         for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold += 1) {
-          this.renderToCanvas(this.recordingBufferCtx, WIDTH, HEIGHT);
+          this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
           this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
           this.recordingCtx.drawImage(
             this.recordingBufferCanvas,
             0,
             0,
-            WIDTH,
-            HEIGHT,
+            RECORDING_BUFFER_SIZE.width,
+            RECORDING_BUFFER_SIZE.height,
             0,
             0,
             RECORDING_SIZE.width,
