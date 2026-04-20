@@ -9128,13 +9128,10 @@ function updatePreviewElytra(weapon, dt, enemy) {
         this.ui.downloadBattleButton.disabled = true;
         return;
       }
-      if (typeof OffscreenCanvas !== "undefined") {
-        this.recordingCanvas = new OffscreenCanvas(RECORDING_SIZE.width, RECORDING_SIZE.height);
-      } else {
-        this.recordingCanvas = document.createElement("canvas");
-        this.recordingCanvas.width = RECORDING_SIZE.width;
-        this.recordingCanvas.height = RECORDING_SIZE.height;
-      }
+      // Use regular canvas for recording to ensure captureStream support
+      this.recordingCanvas = document.createElement("canvas");
+      this.recordingCanvas.width = RECORDING_SIZE.width;
+      this.recordingCanvas.height = RECORDING_SIZE.height;
       this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
       if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
         this.recordingCtx.imageSmoothingQuality = "high";
