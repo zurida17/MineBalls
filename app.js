@@ -15,8 +15,8 @@
     width: 2160,
     height: 3840,
   };
-  const RECORDING_FPS = 12; // lower FPS for smoother 4K export with all effects
-  const RECORDING_VIDEO_BITRATE = 10000000; // 10Mbps for 4K at 12fps
+  const RECORDING_FPS = 30; // higher FPS for smoother video
+  const RECORDING_VIDEO_BITRATE = 15000000; // 15Mbps for 4K at 30fps
   const RECORDING_AUDIO_BITRATE = 192000;
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
 
@@ -10565,13 +10565,13 @@ URL.revokeObjectURL(link.href);
         return;
       }
 
-      const fastRecordingExport = false; // keep all effects for 4K video
+      const fastRecordingExport = targetCtx === this.recordingCtx && this.recordingExportActive;
       targetCtx.clearRect(0, 0, targetWidth, targetHeight);
       targetCtx.fillStyle = "#070b18";
       targetCtx.fillRect(0, 0, targetWidth, targetHeight);
       targetCtx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in targetCtx) {
-        targetCtx.imageSmoothingQuality = "high";
+        targetCtx.imageSmoothingQuality = fastRecordingExport ? "medium" : "high";
       }
 
       targetCtx.save();
@@ -10617,7 +10617,9 @@ URL.revokeObjectURL(link.href);
       targetCtx.scale(scale, scale);
       this.drawHud(targetCtx);
       this.drawOverlayText(targetCtx);
-      this.drawScreenFx(targetCtx);
+      if (!fastRecordingExport) {
+        this.drawScreenFx(targetCtx);
+      }
       targetCtx.restore();
     }
 
