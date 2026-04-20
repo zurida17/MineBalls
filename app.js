@@ -9133,8 +9133,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
       this.recordingCanvas.style.position = "absolute";
-      this.recordingCanvas.style.left = "-9999px";
-      this.recordingCanvas.style.opacity = "0";
+      this.recordingCanvas.style.top = "0";
+      this.recordingCanvas.style.left = "0";
+      this.recordingCanvas.style.width = "1px";
+      this.recordingCanvas.style.height = "1px";
+      this.recordingCanvas.style.pointerEvents = "none";
       document.body.appendChild(this.recordingCanvas);
       this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false });
       if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
