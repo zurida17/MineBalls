@@ -9142,8 +9142,9 @@ function updatePreviewElytra(weapon, dt, enemy) {
       if (!this.recordingCanvas) {
         return null;
       }
-      const videoStream = this.recordingCanvas.captureStream(0);
+      const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
       this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
+      AUDIO.ensureMusicBus();
       const audioDestination = AUDIO.ensureRecordingDestination();
       if (audioDestination && audioDestination.stream) {
         const combined = new MediaStream();
@@ -9394,7 +9395,7 @@ startBattleRecording() {
           countdown: false,
           hideMenu: false,
           skipRecording: true,
-          skipAudio: true,
+          skipAudio: false,
           seed: captureMeta.seed,
         });
         for (const dtRaw of captureDts) {
@@ -10164,7 +10165,6 @@ URL.revokeObjectURL(link.href);
       const dt = clamp((timestamp - this.lastFrame) / 1000 || 0, 0, 0.033);
       this.lastFrame = timestamp;
       if (this.recordingReplayInProgress) {
-        this.render();
         requestAnimationFrame((time) => this.frame(time));
         return;
       }
