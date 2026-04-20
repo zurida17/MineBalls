@@ -9455,11 +9455,8 @@ startBattleRecording() {
           const elapsed = performance.now() - frameStart;
           const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
-          if (frameIndex % 5 === 0) {
+          if (frameIndex % 10 === 0) {
             console.log(`Exported frame ${frameIndex}/${frameCount}`);
-          }
-          if (frameIndex % 2 === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
         console.log("Exporting hold frames");
@@ -9472,9 +9469,6 @@ startBattleRecording() {
           const elapsed = performance.now() - frameStart;
           const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
-          if (hold % 2 === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 0));
-          }
         }
         console.log("Stopping recorder");
       } catch (error) {
@@ -10601,7 +10595,7 @@ URL.revokeObjectURL(link.href);
       }
 
       this.drawFighters(targetCtx);
-      if (!lowQualityPreview) {
+      if (!lowQualityPreview && !fastRecordingExport) {
         for (const particle of this.particles) {
           particle.draw(targetCtx);
         }
