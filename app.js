@@ -20,8 +20,8 @@
     width: Math.round(WIDTH * RECORDING_BUFFER_SCALE),
     height: Math.round(HEIGHT * RECORDING_BUFFER_SCALE),
   };
-  const RECORDING_FPS = 30; // higher FPS for smoother video
-  const RECORDING_VIDEO_BITRATE = 15000000; // 15Mbps for 4K at 30fps
+  const RECORDING_FPS = 60; // higher FPS for smoother video
+  const RECORDING_VIDEO_BITRATE = 30000000; // 30Mbps for 4K at 60fps
   const RECORDING_AUDIO_BITRATE = 192000;
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
 
@@ -8322,6 +8322,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
         right: "boat",
       };
       this.lastFrame = 0;
+      this.accumulator = 0;
       this.backgroundImage = null;
       this.backgroundReady = false;
       this.backgroundDrift = vec(randomRange(-22, 22), randomRange(-16, 16));
@@ -10266,6 +10267,10 @@ URL.revokeObjectURL(link.href);
     frame(timestamp) {
       const dt = clamp((timestamp - this.lastFrame) / 1000 || 0, 0, 0.033);
       this.lastFrame = timestamp;
+      this.accumulator += dt;
+
+      const fixedDt = 1 / 30; // Lower update rate for weaker PCs, but render at 60 FPS
+
       if (this.recordingReplayInProgress) {
         requestAnimationFrame((time) => this.frame(time));
         return;
@@ -10275,7 +10280,13 @@ URL.revokeObjectURL(link.href);
         requestAnimationFrame((time) => this.frame(time));
         return;
       }
-      this.update(dt);
+
+      // Update with fixed timestep
+      while (this.accumulator >= fixedDt) {
+        this.update(fixedDt);
+        this.accumulator -= fixedDt;
+      }
+
       if (this.recordingCaptureActive) {
         this.recordingCaptureDts.push(dt);
       }
