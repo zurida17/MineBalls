@@ -9149,6 +9149,10 @@ function updatePreviewElytra(weapon, dt, enemy) {
       }
       const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
       this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
+      if (!this.recordingVideoTrack) {
+        console.warn("No video track from captureStream.");
+        return null;
+      }
       AUDIO.ensureMusicBus();
       const audioDestination = AUDIO.ensureRecordingDestination();
       if (audioDestination && audioDestination.stream) {
@@ -9374,6 +9378,7 @@ startBattleRecording() {
 
     async exportCapturedBattle() {
       if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCaptureDts.length || !this.recordingCtx) {
+        console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "dts=", this.recordingCaptureDts.length, "ctx=", !!this.recordingCtx);
         return;
       }
       const captureMeta = this.recordingCaptureMeta;
@@ -9387,6 +9392,7 @@ startBattleRecording() {
 
       const stoppedPromise = this.startRecordingEncoderSession();
       if (!stoppedPromise) {
+        console.error("Failed to start recording encoder session.");
         this.recordingExportActive = false;
         this.recordingReplayInProgress = false;
         this.recordingActive = false;
@@ -9396,6 +9402,7 @@ startBattleRecording() {
 
       const finalMessage = this.recordingPostResultMessage || TEXT.choose;
       try {
+        console.log("Starting export replay for", captureDts.length, "frames");
         this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
           countdown: false,
           hideMenu: false,
@@ -9415,10 +9422,14 @@ startBattleRecording() {
           const elapsed = performance.now() - frameStart;
           const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
+          if (frameIndex % 10 === 0) {
+            console.log(`Exported frame ${frameIndex}/${frameCount}`);
+          }
           if (frameIndex % 3 === 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
+        console.log("Exporting hold frames");
         for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold += 1) {
           const frameStart = performance.now();
           this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
@@ -9432,6 +9443,7 @@ startBattleRecording() {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
+        console.log("Stopping recorder");
       } catch (error) {
         console.error("Deferred recording export failed:", error);
       } finally {
@@ -9439,6 +9451,7 @@ startBattleRecording() {
           this.recorder.stop();
         }
         await stoppedPromise;
+        console.log("Export completed, blob size:", this.recordingBlob ? this.recordingBlob.size : "none");
         this.recordingReplayInProgress = false;
         this.recordingExportActive = false;
         this.recordingActive = false;
