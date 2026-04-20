@@ -10609,8 +10609,10 @@ URL.revokeObjectURL(link.href);
       targetCtx.save();
       targetCtx.translate(offsetX, offsetY);
       targetCtx.scale(scale, scale);
-      this.drawHud(targetCtx);
-      this.drawOverlayText(targetCtx);
+      if (!fastRecordingExport) {
+        this.drawHud(targetCtx);
+        this.drawOverlayText(targetCtx);
+      }
       if (!fastRecordingExport) {
         this.drawScreenFx(targetCtx);
       }
