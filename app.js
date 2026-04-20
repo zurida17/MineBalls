@@ -15,8 +15,8 @@
     width: 2160,
     height: 3840,
   };
-  const RECORDING_FPS = 24; // lower export FPS for smoother encoding on weaker machines
-  const RECORDING_VIDEO_BITRATE = 22000000;
+  const RECORDING_FPS = 12; // lower FPS for smoother 4K export with all effects
+  const RECORDING_VIDEO_BITRATE = 10000000; // 10Mbps for 4K at 12fps
   const RECORDING_AUDIO_BITRATE = 192000;
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
 
@@ -9455,10 +9455,10 @@ startBattleRecording() {
           const elapsed = performance.now() - frameStart;
           const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
-          if (frameIndex % 10 === 0) {
+          if (frameIndex % 5 === 0) {
             console.log(`Exported frame ${frameIndex}/${frameCount}`);
           }
-          if (frameIndex % 3 === 0) {
+          if (frameIndex % 2 === 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
@@ -9472,7 +9472,7 @@ startBattleRecording() {
           const elapsed = performance.now() - frameStart;
           const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
-          if (hold % 3 === 0) {
+          if (hold % 2 === 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
@@ -10565,6 +10565,7 @@ URL.revokeObjectURL(link.href);
         return;
       }
 
+      const fastRecordingExport = false; // keep all effects for 4K video
       targetCtx.clearRect(0, 0, targetWidth, targetHeight);
       targetCtx.fillStyle = "#070b18";
       targetCtx.fillRect(0, 0, targetWidth, targetHeight);
