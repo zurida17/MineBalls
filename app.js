@@ -8354,6 +8354,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recorder = null;
       this.videoEncoder = null;
       this.audioEncoder = null;
+      this.recordingStopResolve = null;
+      this.recordingStopPromise = null;
       this.recordedChunks = [];
       this.recordingBlob = null;
       this.recordingUrl = "";
@@ -9446,6 +9448,8 @@ startBattleRecording() {
       const stopped = new Promise((resolve) => {
         resolveStop = resolve;
       });
+      this.recordingStopResolve = resolveStop;
+      this.recordingStopPromise = stopped;
 
       // Video Encoder
       const videoConfig = {
@@ -9466,7 +9470,10 @@ startBattleRecording() {
         error: (e) => {
           console.error('VideoEncoder error:', e);
           this.stopWebCodecsRecording();
-          resolveStop();
+          if (this.recordingStopResolve) {
+            this.recordingStopResolve();
+            this.recordingStopResolve = null;
+          }
         },
       });
 
@@ -9488,7 +9495,7 @@ startBattleRecording() {
         this.audioEncoder.close();
         this.audioEncoder = null;
       }
-      // Create MP4 blob from chunks
+      // Create WebM blob from chunks
       if (this.recordedChunks.length) {
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
         this.recordingBlob = blob;
@@ -9501,6 +9508,10 @@ startBattleRecording() {
       }
       this.recordedChunks = [];
       this.syncRecordingButtons();
+      if (this.recordingStopResolve) {
+        this.recordingStopResolve();
+        this.recordingStopResolve = null;
+      }
     }
 
     async exportCapturedBattle() {
