@@ -12,12 +12,12 @@
     height: 768,
   };
   const RECORDING_SIZE = {
-    width: WIDTH,
-    height: HEIGHT,
+    width: 2160,
+    height: 3840,
   };
   const RECORDING_FPS = 60;
-  const RECORDING_VIDEO_BITRATE = 12000000;
-  const RECORDING_AUDIO_BITRATE = 256000;
+  const RECORDING_VIDEO_BITRATE = 24000000;
+  const RECORDING_AUDIO_BITRATE = 192000;
 
   // Put custom backgrounds in ./backgrounds/.
   // Put custom sprites in ./sprites/.
@@ -8326,6 +8326,13 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingStream = null;
       this.recordingCanvas = null;
       this.recordingCtx = null;
+      this.recordingRendererType = "2d";
+      this.recordingGl = null;
+      this.recordingGlProgram = null;
+      this.recordingGlTexture = null;
+      this.recordingGlBuffer = null;
+      this.recordingGlPositionLocation = -1;
+      this.recordingGlUvLocation = -1;
       this.recorder = null;
       this.recordedChunks = [];
       this.recordingBlob = null;
@@ -9111,18 +9118,126 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas = document.createElement("canvas");
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
-      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: false });
-      if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
-        this.recordingCtx.imageSmoothingQuality = "high";
+      if (!this.initRecordingWebGLRenderer()) {
+        this.recordingRendererType = "2d";
+        this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
+        if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
+          this.recordingCtx.imageSmoothingQuality = "high";
+        }
       }
       this.syncRecordingButtons();
+    }
+
+    initRecordingWebGLRenderer() {
+      if (!this.recordingCanvas) {
+        return false;
+      }
+      const gl = this.recordingCanvas.getContext("webgl2", {
+        alpha: false,
+        antialias: false,
+        desynchronized: true,
+        powerPreference: "high-performance",
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+      });
+      if (!gl) {
+        return false;
+      }
+      const vertexSrc = `#version 300 es
+in vec2 aPosition;
+in vec2 aUv;
+out vec2 vUv;
+void main() {
+  vUv = aUv;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`;
+      const fragmentSrc = `#version 300 es
+precision highp float;
+in vec2 vUv;
+uniform sampler2D uTexture;
+out vec4 outColor;
+void main() {
+  outColor = texture(uTexture, vUv);
+}`;
+      const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+      const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+      if (!vertexShader || !fragmentShader) {
+        return false;
+      }
+      gl.shaderSource(vertexShader, vertexSrc);
+      gl.compileShader(vertexShader);
+      if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+        console.warn("Recording WebGL vertex shader compilation failed:", gl.getShaderInfoLog(vertexShader));
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        return false;
+      }
+      gl.shaderSource(fragmentShader, fragmentSrc);
+      gl.compileShader(fragmentShader);
+      if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+        console.warn("Recording WebGL fragment shader compilation failed:", gl.getShaderInfoLog(fragmentShader));
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        return false;
+      }
+      const program = gl.createProgram();
+      if (!program) {
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        return false;
+      }
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.warn("Recording WebGL program link failed:", gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return false;
+      }
+
+      const buffer = gl.createBuffer();
+      const texture = gl.createTexture();
+      if (!buffer || !texture) {
+        gl.deleteProgram(program);
+        return false;
+      }
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          -1, -1, 0, 0,
+           1, -1, 1, 0,
+          -1,  1, 0, 1,
+           1,  1, 1, 1,
+        ]),
+        gl.STATIC_DRAW
+      );
+
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      this.recordingRendererType = "webgl";
+      this.recordingCtx = null;
+      this.recordingGl = gl;
+      this.recordingGlProgram = program;
+      this.recordingGlTexture = texture;
+      this.recordingGlBuffer = buffer;
+      this.recordingGlPositionLocation = gl.getAttribLocation(program, "aPosition");
+      this.recordingGlUvLocation = gl.getAttribLocation(program, "aUv");
+      return true;
     }
 
     createRecordingStream() {
       if (!this.recordingCanvas) {
         return null;
       }
-      const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
+      const videoStream = this.recordingCanvas.captureStream(0);
       this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
       const audioDestination = AUDIO.ensureRecordingDestination();
       if (audioDestination && audioDestination.stream) {
@@ -9154,8 +9269,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
 
     getRecordingConfig() {
       const candidates = [
-        { mimeType: "video/webm;codecs=vp9,opus", extension: "webm" },
         { mimeType: "video/webm;codecs=vp8,opus", extension: "webm" },
+        { mimeType: "video/webm;codecs=vp9,opus", extension: "webm" },
         { mimeType: "video/webm", extension: "webm" },
       ];
       if (typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function") {
@@ -9200,8 +9315,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
 
     getRecordingMimeType() {
       const candidates = [
-        "video/webm;codecs=vp9,opus",
         "video/webm;codecs=vp8,opus",
+        "video/webm;codecs=vp9,opus",
         "video/webm",
       ];
       for (const mimeType of candidates) {
@@ -9252,6 +9367,8 @@ startBattleRecording() {
       this.recorder.onerror = (e) => {
         console.error("MediaRecorder error:", e);
         this.recordingActive = false;
+        this.releaseRecordingStream();
+        this.recorder = null;
         this.syncRecordingButtons();
       };
       this.recorder.ondataavailable = (event) => {
@@ -9277,9 +9394,9 @@ startBattleRecording() {
         this.recorder = null;
         this.syncRecordingButtons();
       };
-      this.renderRecordingFrame();
-      this.recorder.start(250);
       this.recordingActive = true;
+      this.renderRecordingFrame();
+      this.recorder.start(1000);
       this.syncRecordingButtons();
     }
 
@@ -9316,7 +9433,21 @@ downloadBattleRecording() {
     }
 
     renderRecordingFrame() {
-      if (!this.recordingActive || !this.recordingCtx || !this.recordingCanvas) {
+      if (!this.recordingActive || !this.recordingCanvas) {
+        return;
+      }
+      if (this.recordingRendererType === "webgl") {
+        this.renderRecordingFrameWebGL();
+      } else {
+        this.renderRecordingFrame2D();
+      }
+      if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+        this.recordingVideoTrack.requestFrame();
+      }
+    }
+
+    renderRecordingFrame2D() {
+      if (!this.recordingCtx || !this.recordingCanvas) {
         return;
       }
       const ctx = this.recordingCtx;
@@ -9337,9 +9468,48 @@ downloadBattleRecording() {
         ctx.imageSmoothingQuality = "high";
       }
       ctx.drawImage(this.canvas, 0, 0, sourceWidth, sourceHeight, offsetX, offsetY, drawWidth, drawHeight);
-      if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
-        this.recordingVideoTrack.requestFrame();
+    }
+
+    renderRecordingFrameWebGL() {
+      const gl = this.recordingGl;
+      const program = this.recordingGlProgram;
+      const texture = this.recordingGlTexture;
+      const buffer = this.recordingGlBuffer;
+      if (!gl || !program || !texture || !buffer || !this.recordingCanvas) {
+        this.renderRecordingFrame2D();
+        return;
       }
+      const targetWidth = this.recordingCanvas.width;
+      const targetHeight = this.recordingCanvas.height;
+      const sourceWidth = WIDTH;
+      const sourceHeight = HEIGHT;
+      const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+      const drawWidth = Math.round(sourceWidth * scale);
+      const drawHeight = Math.round(sourceHeight * scale);
+      const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
+      const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
+
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.canvas);
+
+      gl.viewport(0, 0, targetWidth, targetHeight);
+      gl.clearColor(0.027, 0.043, 0.094, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.viewport(offsetX, targetHeight - offsetY - drawHeight, drawWidth, drawHeight);
+      gl.useProgram(program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(this.recordingGlPositionLocation);
+      gl.vertexAttribPointer(this.recordingGlPositionLocation, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(this.recordingGlUvLocation);
+      gl.vertexAttribPointer(this.recordingGlUvLocation, 2, gl.FLOAT, false, 16, 8);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.disableVertexAttribArray(this.recordingGlPositionLocation);
+      gl.disableVertexAttribArray(this.recordingGlUvLocation);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.useProgram(null);
+      gl.flush();
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
