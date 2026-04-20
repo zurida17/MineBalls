@@ -8342,6 +8342,8 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingStream = null;
       this.recordingCanvas = null;
       this.recordingCtx = null;
+      this.recordingBufferCanvas = null;
+      this.recordingBufferCtx = null;
       this.recorder = null;
       this.recordedChunks = [];
       this.recordingBlob = null;
@@ -9147,23 +9149,34 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
 
     ensureRecordingCanvas() {
-      if (this.recordingCanvas && this.recordingCtx) {
+      if (this.recordingCanvas && this.recordingCtx && this.recordingBufferCanvas && this.recordingBufferCtx) {
         return;
       }
-      this.recordingCanvas = document.createElement("canvas");
-      this.recordingCanvas.width = RECORDING_SIZE.width;
-      this.recordingCanvas.height = RECORDING_SIZE.height;
-      this.recordingCanvas.style.position = "absolute";
-      this.recordingCanvas.style.top = "0";
-      this.recordingCanvas.style.left = "0";
-      this.recordingCanvas.style.width = "1px";
-      this.recordingCanvas.style.height = "1px";
-      this.recordingCanvas.style.pointerEvents = "none";
-      this.recordingCanvas.style.opacity = "0";
-      document.body.appendChild(this.recordingCanvas);
-      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false });
-      if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
-        this.recordingCtx.imageSmoothingQuality = "high";
+      if (!this.recordingCanvas) {
+        this.recordingCanvas = document.createElement("canvas");
+        this.recordingCanvas.width = RECORDING_SIZE.width;
+        this.recordingCanvas.height = RECORDING_SIZE.height;
+        this.recordingCanvas.style.position = "absolute";
+        this.recordingCanvas.style.top = "0";
+        this.recordingCanvas.style.left = "0";
+        this.recordingCanvas.style.width = "1px";
+        this.recordingCanvas.style.height = "1px";
+        this.recordingCanvas.style.pointerEvents = "none";
+        this.recordingCanvas.style.opacity = "0";
+        document.body.appendChild(this.recordingCanvas);
+        this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false });
+        if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
+          this.recordingCtx.imageSmoothingQuality = "high";
+        }
+      }
+      if (!this.recordingBufferCanvas) {
+        this.recordingBufferCanvas = document.createElement("canvas");
+        this.recordingBufferCanvas.width = WIDTH;
+        this.recordingBufferCanvas.height = HEIGHT;
+        this.recordingBufferCtx = this.recordingBufferCanvas.getContext("2d", { alpha: false });
+        if (this.recordingBufferCtx && "imageSmoothingQuality" in this.recordingBufferCtx) {
+          this.recordingBufferCtx.imageSmoothingQuality = "high";
+        }
       }
     }
 
@@ -9445,15 +9458,29 @@ startBattleRecording() {
         });
         const frameCount = captureDts.length;
         const replayDt = 1 / RECORDING_FPS;
-        for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+        const exportStartTime = performance.now();
+      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
           const frameStart = performance.now();
           this.update(replayDt);
-          this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.renderToCanvas(this.recordingBufferCtx, WIDTH, HEIGHT);
+          this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.recordingCtx.drawImage(
+            this.recordingBufferCanvas,
+            0,
+            0,
+            WIDTH,
+            HEIGHT,
+            0,
+            0,
+            RECORDING_SIZE.width,
+            RECORDING_SIZE.height
+          );
           if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          const elapsed = performance.now() - frameStart;
-          const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
+          const elapsed = performance.now() - exportStartTime;
+          const target = (frameIndex + 1) * RECORDING_EXPORT_FRAME_MS;
+          const delay = Math.max(target - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
           if (frameIndex % 10 === 0) {
             console.log(`Exported frame ${frameIndex}/${frameCount}`);
@@ -9461,13 +9488,25 @@ startBattleRecording() {
         }
         console.log("Exporting hold frames");
         for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold += 1) {
-          const frameStart = performance.now();
-          this.renderToCanvas(this.recordingCtx, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.renderToCanvas(this.recordingBufferCtx, WIDTH, HEIGHT);
+          this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.recordingCtx.drawImage(
+            this.recordingBufferCanvas,
+            0,
+            0,
+            WIDTH,
+            HEIGHT,
+            0,
+            0,
+            RECORDING_SIZE.width,
+            RECORDING_SIZE.height
+          );
           if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          const elapsed = performance.now() - frameStart;
-          const delay = Math.max(RECORDING_EXPORT_FRAME_MS - elapsed, 0);
+          const elapsed = performance.now() - exportStartTime;
+          const target = (frameCount + hold + 1) * RECORDING_EXPORT_FRAME_MS;
+          const delay = Math.max(target - elapsed, 0);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
         console.log("Stopping recorder");
