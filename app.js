@@ -9132,7 +9132,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingCanvas = document.createElement("canvas");
       this.recordingCanvas.width = RECORDING_SIZE.width;
       this.recordingCanvas.height = RECORDING_SIZE.height;
-      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false, desynchronized: true });
+      this.recordingCanvas.style.position = "absolute";
+      this.recordingCanvas.style.left = "-9999px";
+      this.recordingCanvas.style.opacity = "0";
+      document.body.appendChild(this.recordingCanvas);
+      this.recordingCtx = this.recordingCanvas.getContext("2d", { alpha: false });
       if (this.recordingCtx && "imageSmoothingQuality" in this.recordingCtx) {
         this.recordingCtx.imageSmoothingQuality = "high";
       }
@@ -9144,6 +9148,9 @@ function updatePreviewElytra(weapon, dt, enemy) {
         console.warn("Recording stream unavailable: captureStream not supported on this canvas.");
         return null;
       }
+      // Draw initial frame to ensure canvas is ready
+      this.recordingCtx.fillStyle = "black";
+      this.recordingCtx.fillRect(0, 0, this.recordingCanvas.width, this.recordingCanvas.height);
       const videoStream = this.recordingCanvas.captureStream(RECORDING_FPS);
       this.recordingVideoTrack = videoStream.getVideoTracks()[0] || null;
       if (!this.recordingVideoTrack) {
@@ -9176,6 +9183,11 @@ function updatePreviewElytra(weapon, dt, enemy) {
         });
       }
       this.recordingStream = null;
+      if (this.recordingCanvas && this.recordingCanvas.parentNode) {
+        this.recordingCanvas.parentNode.removeChild(this.recordingCanvas);
+      }
+      this.recordingCanvas = null;
+      this.recordingCtx = null;
       this.recordingVideoTrack = null;
     }
 
