@@ -8299,6 +8299,10 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.canvas.width = WIDTH;
       this.canvas.height = HEIGHT;
       this.ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+      if (!this.ctx) {
+        console.warn("desynchronized not supported, falling back to standard 2d context");
+        this.ctx = canvas.getContext("2d", { alpha: false });
+      }
       if (this.ctx && "imageSmoothingQuality" in this.ctx) {
         this.ctx.imageSmoothingQuality = "high";
       }
