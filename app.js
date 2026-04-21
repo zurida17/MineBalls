@@ -9530,8 +9530,9 @@ startBattleRecording() {
               }
               if (chunk && chunk.type) {
                 // Convert EncodedVideoChunk to Uint8Array
+                // Note: copyTo() expects ArrayBuffer, not Uint8Array
                 const chunkData = new Uint8Array(chunk.byteLength);
-                chunk.copyTo(chunkData);
+                chunk.copyTo(chunkData.buffer);
                 this.recordedChunks.push(chunkData);
                 if (this.recordingFramesEncoded % 10 === 0) {
                   console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk size: ${chunkData.byteLength}, total chunks: ${this.recordedChunks.length}`);
