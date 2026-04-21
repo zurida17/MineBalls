@@ -9703,7 +9703,7 @@ startBattleRecording() {
           console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes, ${this.recordedChunks.length} chunks`);
         };
         
-        mediaRecorder.start(100); // Request data every 100ms
+        mediaRecorder.start(100); // Request data every 100ms for stable recording
         console.log(`MediaRecorder started, state: ${mediaRecorder.state}`);
         
         // Run replay
@@ -9764,17 +9764,36 @@ startBattleRecording() {
         console.log(`Requesting final data, state before: ${mediaRecorder.state}`);
         mediaRecorder.requestData();
         
-        // Wait for all data to be collected
+        // Stop and wait for onstop to be called
+        console.log(`Stopping mediaRecorder, collected chunks so far: ${this.recordedChunks.length}`);
         await new Promise((resolve) => {
+          let onstopCalled = false;
           const originalOnstop = mediaRecorder.onstop;
+          
           mediaRecorder.onstop = () => {
-            originalOnstop?.call(mediaRecorder);
-            resolve();
+            if (!onstopCalled) {
+              onstopCalled = true;
+              console.log("MediaRecorder onstop called");
+              // Execute original blob creation logic
+              originalOnstop?.call(mediaRecorder);
+              resolve();
+            }
           };
+          
+          // Also set a timeout as fallback in case onstop doesn't fire
+          setTimeout(() => {
+            if (!onstopCalled) {
+              console.log("onstop timeout fallback triggered");
+              onstopCalled = true;
+              originalOnstop?.call(mediaRecorder);
+              resolve();
+            }
+          }, 200);
+          
           mediaRecorder.stop();
         });
         
-        console.log(`MediaRecorder stopped, collected ${this.recordedChunks.length} chunks`);
+        console.log(`MediaRecorder stopped, collected ${this.recordedChunks.length} chunks, blob size: ${this.recordingBlob?.size || 0}`);
         
       } catch (e) {
         console.error("Export failed:", e);
