@@ -28,6 +28,7 @@
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
   const RECORDING_FRAME_TIME_MS = 1000 / RECORDING_FPS; // time between frames in milliseconds (~16.67ms for 60fps)
   const RECORDING_ENCODER_QUEUE_THRESHOLD = 5; // max frames queued before we consider encoder overloaded
+  const RECORDING_USE_MEDIARECORDER_FOR_EXPORT = true; // Use MediaRecorder instead of WebCodecs for export - more reliable
   const RECORDING_AUTO_QUALITY_SWITCH = true; // automatically reduce quality if encoder can't keep up
   const RECORDING_DECOUPLE_FROM_GAME = true; // record at fixed FPS independent of game speed
 
@@ -9648,12 +9649,115 @@ startBattleRecording() {
       }
     }
 
+    async exportCapturedBattleWithMediaRecorder() {
+      console.log("Starting export with MediaRecorder...");
+      this.ensureRecordingCanvas();
+      if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCtx) {
+        return;
+      }
+      
+      const captureMeta = this.recordingCaptureMeta;
+      this.recordingCaptureMeta = null;
+      this.recordingExportActive = true;
+      this.recordingReplayInProgress = true;
+      this.recordingActive = true;
+      this.syncRecordingButtons();
+      
+      try {
+        // Create stream from canvas
+        const stream = this.recordingCtx.canvas.captureStream(RECORDING_FPS);
+        
+        // Create and start MediaRecorder
+        this.recordedChunks = [];
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: RECORDING_VIDEO_BITRATE
+        });
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            this.recordedChunks.push(e.data);
+          }
+        };
+        
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+          this.recordingBlob = blob;
+          this.recordingMime = 'video/webm';
+          this.recordingExtension = 'webm';
+          this.recordingUrl = URL.createObjectURL(blob);
+          console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes`);
+        };
+        
+        mediaRecorder.start(100); // Request data every 100ms
+        
+        // Run replay
+        this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
+          countdown: false,
+          hideMenu: false,
+          skipRecording: true,
+          skipAudio: false,
+          seed: captureMeta.seed,
+        });
+        
+        const replayDt = 1 / RECORDING_FPS;
+        while (!this.result.winner && this.mode !== MODES.MENU) {
+          this.update(replayDt);
+          this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
+          this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.recordingCtx.drawImage(
+            this.recordingBufferCanvas,
+            0, 0,
+            RECORDING_BUFFER_SIZE.width,
+            RECORDING_BUFFER_SIZE.height,
+            0, 0,
+            RECORDING_SIZE.width,
+            RECORDING_SIZE.height
+          );
+          
+          await new Promise(resolve => setTimeout(resolve, 0)); // Allow UI updates
+        }
+        
+        // Export hold frames
+        for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold++) {
+          this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
+          this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
+          this.recordingCtx.drawImage(
+            this.recordingBufferCanvas,
+            0, 0,
+            RECORDING_BUFFER_SIZE.width,
+            RECORDING_BUFFER_SIZE.height,
+            0, 0,
+            RECORDING_SIZE.width,
+            RECORDING_SIZE.height
+          );
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        
+        mediaRecorder.stop();
+        
+      } catch (e) {
+        console.error("Export failed:", e);
+      } finally {
+        this.recordingExportActive = false;
+        this.recordingReplayInProgress = false;
+        this.recordingActive = false;
+        this.syncRecordingButtons();
+      }
+    }
+
     async exportCapturedBattle() {
       this.ensureRecordingCanvas();
       if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCtx) {
         console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "ctx=", !!this.recordingCtx);
         return;
       }
+      
+      // Use MediaRecorder for export if available - it's more reliable than WebCodecs for this use case
+      if (RECORDING_USE_MEDIARECORDER_FOR_EXPORT) {
+        return this.exportCapturedBattleWithMediaRecorder();
+      }
+      
       const captureMeta = this.recordingCaptureMeta;
       this.recordingCaptureMeta = null;
       this.recordingExportActive = true;
