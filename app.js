@@ -9716,6 +9716,9 @@ startBattleRecording() {
         });
         
         const replayDt = 1 / RECORDING_FPS;
+        const frameDelayMs = 1000 / RECORDING_FPS; // ~16.67ms for 60fps
+        let frameCount = 0;
+        
         while (!this.result.winner && this.mode !== MODES.MENU) {
           this.update(replayDt);
           this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
@@ -9729,11 +9732,18 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
+          frameCount++;
           
-          await new Promise(resolve => setTimeout(resolve, 0)); // Allow UI updates
+          if (frameCount % 30 === 0) {
+            console.log(`Recording frame: ${frameCount}`);
+          }
+          
+          // Use fixed frame delay instead of 0 to give mediaRecorder time to capture
+          await new Promise(resolve => setTimeout(resolve, frameDelayMs));
         }
         
         // Export hold frames
+        console.log("Exporting hold frames");
         for (let hold = 0; hold < Math.floor(RECORDING_FPS * 0.5); hold++) {
           this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
           this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
@@ -9746,7 +9756,8 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
-          await new Promise(resolve => setTimeout(resolve, 0));
+          frameCount++;
+          await new Promise(resolve => setTimeout(resolve, frameDelayMs));
         }
         
         // Request any remaining buffered data and wait for it
