@@ -11672,7 +11672,7 @@ URL.revokeObjectURL(link.href);
       tournamentBracket: document.getElementById("tournamentBracket"),
       tournamentStatus: document.getElementById("tournamentStatus"),
     };
-    new Game(canvas, ui);
+    window.battle = new Game(canvas, ui);
   }
 
   window.addEventListener("DOMContentLoaded", boot);
