@@ -9522,11 +9522,8 @@ startBattleRecording() {
               this.recordingFramesEncoded++;
               this.recordingFramesQueued = Math.max(0, this.recordingFramesQueued - 1);
               
-              if (metadata && metadata.decoderConfig) {
-                // decoderConfig is an ArrayBuffer, store as-is
-                this.recordedChunks.push(metadata.decoderConfig);
-                console.log(`[OUTPUT] Decoder config: ${metadata.decoderConfig.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
-              }
+              // Only store actual video frames, NOT decoderConfig
+              // decoderConfig is metadata handled by WebM container, not raw chunk data
               if (chunk && chunk.type) {
                 // Store the EncodedVideoChunk directly - Blob will handle serialization
                 this.recordedChunks.push(chunk);
