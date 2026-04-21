@@ -9694,13 +9694,19 @@ startBattleRecording() {
           }
         };
         
-        mediaRecorder.onstop = () => {
+        // Set up the final blob creation - will be called when mediaRecorder stops
+        const createBlobFromChunks = () => {
           const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
           this.recordingBlob = blob;
           this.recordingMime = 'video/webm';
           this.recordingExtension = 'webm';
           this.recordingUrl = URL.createObjectURL(blob);
           console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes, ${this.recordedChunks.length} chunks`);
+        };
+        
+        mediaRecorder.onstop = () => {
+          console.log("MediaRecorder onstop fired, creating blob...");
+          createBlobFromChunks();
         };
         
         mediaRecorder.start(100); // Request data every 100ms for stable recording
@@ -9767,28 +9773,32 @@ startBattleRecording() {
         // Stop and wait for onstop to be called
         console.log(`Stopping mediaRecorder, collected chunks so far: ${this.recordedChunks.length}`);
         await new Promise((resolve) => {
-          let onstopCalled = false;
-          const originalOnstop = mediaRecorder.onstop;
+          let resolved = false;
           
+          // Wrap onstop to know when it fires
+          const originalOnstop = mediaRecorder.onstop;
           mediaRecorder.onstop = () => {
-            if (!onstopCalled) {
-              onstopCalled = true;
-              console.log("MediaRecorder onstop called");
-              // Execute original blob creation logic
-              originalOnstop?.call(mediaRecorder);
+            console.log("MediaRecorder onstop event fired");
+            if (originalOnstop) {
+              originalOnstop.call(mediaRecorder);
+            }
+            if (!resolved) {
+              resolved = true;
               resolve();
             }
           };
           
           // Also set a timeout as fallback in case onstop doesn't fire
           setTimeout(() => {
-            if (!onstopCalled) {
-              console.log("onstop timeout fallback triggered");
-              onstopCalled = true;
-              originalOnstop?.call(mediaRecorder);
+            if (!resolved) {
+              console.log("onstop timeout fallback triggered - calling originalOnstop manually");
+              resolved = true;
+              if (originalOnstop) {
+                originalOnstop.call(mediaRecorder);
+              }
               resolve();
             }
-          }, 200);
+          }, 300);
           
           mediaRecorder.stop();
         });
