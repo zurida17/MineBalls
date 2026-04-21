@@ -9524,9 +9524,13 @@ startBattleRecording() {
               
               if (metadata && metadata.decoderConfig) {
                 this.recordedChunks.push(metadata.decoderConfig);
+                console.log(`[OUTPUT] Decoder config: ${metadata.decoderConfig.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
               }
               if (chunk && chunk.type) {
                 this.recordedChunks.push(chunk);
+                if (this.recordingFramesEncoded % 10 === 0) {
+                  console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk size: ${chunk.byteLength}, total chunks: ${this.recordedChunks.length}`);
+                }
               }
             } catch (e) {
               console.error('Error processing encoder output:', e);
@@ -9655,6 +9659,14 @@ startBattleRecording() {
       }
 
       const finalMessage = this.recordingPostResultMessage || TEXT.choose;
+      
+      // Declare variables before try block so they're accessible in finally
+      let frameIndex = 0;
+      let frameErrors = 0;
+      let frameSkipped = 0;
+      let replayStartTime = 0;
+      let lastDiagnosticLog = 0;
+      
       try {
         console.log("Starting export replay");
         this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
@@ -9665,11 +9677,11 @@ startBattleRecording() {
           seed: captureMeta.seed,
         });
         const replayDt = 1 / RECORDING_FPS;
-        let frameIndex = 0;
-        let frameErrors = 0;
-        let frameSkipped = 0;
-        let replayStartTime = performance.now();
-        let lastDiagnosticLog = replayStartTime;
+        frameIndex = 0;
+        frameErrors = 0;
+        frameSkipped = 0;
+        replayStartTime = performance.now();
+        lastDiagnosticLog = replayStartTime;
         
         // Initialize video time tracking for decoupled recording
         this.recordingVideoTime = 0;
@@ -9708,6 +9720,10 @@ startBattleRecording() {
                 frame.close();
                 this.recordingVideoFrameIndex++;
                 this.recordingNextFrameTime += RECORDING_FRAME_TIME_MS;
+                
+                if (this.recordingVideoFrameIndex % 30 === 0) {
+                  console.log(`Encoded frame ${this.recordingVideoFrameIndex}, chunks so far: ${this.recordedChunks.length}`);
+                }
               } catch (e) {
                 frameErrors++;
                 this.recordingEncoderStats.framesSkipped++;
