@@ -8357,7 +8357,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingStopResolve = null;
       this.recordingStopPromise = null;
       this.recordedChunks = [];
-      this.recordingBlob = null;в
+      this.recordingBlob = null;
       this.recordingUrl = "";
       this.recordingMime = "";
       this.recordingExtension = "webm";
