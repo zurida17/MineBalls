@@ -9523,9 +9523,8 @@ startBattleRecording() {
               this.recordingFramesQueued = Math.max(0, this.recordingFramesQueued - 1);
               
               if (metadata && metadata.decoderConfig) {
-                // Convert decoderConfig to Uint8Array
-                const configData = new Uint8Array(metadata.decoderConfig.byteLength);
-                metadata.decoderConfig.copyTo(configData);
+                // decoderConfig is an ArrayBuffer, convert directly to Uint8Array
+                const configData = new Uint8Array(metadata.decoderConfig);
                 this.recordedChunks.push(configData);
                 console.log(`[OUTPUT] Decoder config: ${configData.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
               }
