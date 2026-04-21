@@ -9523,13 +9523,19 @@ startBattleRecording() {
               this.recordingFramesQueued = Math.max(0, this.recordingFramesQueued - 1);
               
               if (metadata && metadata.decoderConfig) {
-                this.recordedChunks.push(metadata.decoderConfig);
-                console.log(`[OUTPUT] Decoder config: ${metadata.decoderConfig.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
+                // Convert decoderConfig to Uint8Array
+                const configData = new Uint8Array(metadata.decoderConfig.byteLength);
+                metadata.decoderConfig.copyTo(configData);
+                this.recordedChunks.push(configData);
+                console.log(`[OUTPUT] Decoder config: ${configData.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
               }
               if (chunk && chunk.type) {
-                this.recordedChunks.push(chunk);
+                // Convert EncodedVideoChunk to Uint8Array
+                const chunkData = new Uint8Array(chunk.byteLength);
+                chunk.copyTo(chunkData);
+                this.recordedChunks.push(chunkData);
                 if (this.recordingFramesEncoded % 10 === 0) {
-                  console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk size: ${chunk.byteLength}, total chunks: ${this.recordedChunks.length}`);
+                  console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk size: ${chunkData.byteLength}, total chunks: ${this.recordedChunks.length}`);
                 }
               }
             } catch (e) {
