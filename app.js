@@ -9606,6 +9606,19 @@ startBattleRecording() {
       if (this.recordedChunks && this.recordedChunks.length > 0) {
         try {
           console.log(`Creating blob from ${this.recordedChunks.length} chunks`);
+          
+          // Log actual sizes of each chunk
+          let totalBytes = 0;
+          for (let i = 0; i < this.recordedChunks.length; i++) {
+            const chunk = this.recordedChunks[i];
+            const chunkSize = chunk ? chunk.byteLength || chunk.length || 0 : 0;
+            totalBytes += chunkSize;
+            if (i % 10 === 0 || i === this.recordedChunks.length - 1) {
+              console.log(`  Chunk ${i}: type=${chunk?.constructor.name}, size=${chunkSize} bytes`);
+            }
+          }
+          console.log(`  Total accumulated size: ${totalBytes} bytes`);
+          
           const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
           this.recordingBlob = blob;
           this.recordingMime = 'video/webm';
