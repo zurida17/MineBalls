@@ -9523,19 +9523,15 @@ startBattleRecording() {
               this.recordingFramesQueued = Math.max(0, this.recordingFramesQueued - 1);
               
               if (metadata && metadata.decoderConfig) {
-                // decoderConfig is an ArrayBuffer, convert directly to Uint8Array
-                const configData = new Uint8Array(metadata.decoderConfig);
-                this.recordedChunks.push(configData);
-                console.log(`[OUTPUT] Decoder config: ${configData.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
+                // decoderConfig is an ArrayBuffer, store as-is
+                this.recordedChunks.push(metadata.decoderConfig);
+                console.log(`[OUTPUT] Decoder config: ${metadata.decoderConfig.byteLength} bytes, total chunks: ${this.recordedChunks.length}`);
               }
               if (chunk && chunk.type) {
-                // Convert EncodedVideoChunk to Uint8Array
-                // Note: copyTo() expects ArrayBuffer, not Uint8Array
-                const chunkData = new Uint8Array(chunk.byteLength);
-                chunk.copyTo(chunkData.buffer);
-                this.recordedChunks.push(chunkData);
+                // Store the EncodedVideoChunk directly - Blob will handle serialization
+                this.recordedChunks.push(chunk);
                 if (this.recordingFramesEncoded % 10 === 0) {
-                  console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk size: ${chunkData.byteLength}, total chunks: ${this.recordedChunks.length}`);
+                  console.log(`[OUTPUT] Frame ${this.recordingFramesEncoded}, chunk byteLength: ${chunk.byteLength}, total chunks: ${this.recordedChunks.length}`);
                 }
               }
             } catch (e) {
