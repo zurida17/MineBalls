@@ -9709,7 +9709,7 @@ startBattleRecording() {
           createBlobFromChunks();
         };
         
-        mediaRecorder.start(100); // Request data every 100ms for stable recording
+        mediaRecorder.start(50); // Request data every 50ms for better frame capture
         console.log(`MediaRecorder started, state: ${mediaRecorder.state}`);
         
         // Run replay
@@ -9739,6 +9739,11 @@ startBattleRecording() {
             RECORDING_SIZE.height
           );
           frameCount++;
+          
+          // Request data every 30 frames (about 500ms at 60fps) to flush MediaRecorder buffer
+          if (frameCount % 30 === 0) {
+            mediaRecorder.requestData();
+          }
           
           if (frameCount % 30 === 0) {
             console.log(`Recording frame: ${frameCount}`);
