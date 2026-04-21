@@ -9505,6 +9505,7 @@ startBattleRecording() {
     }
 
     async exportCapturedBattle() {
+      this.ensureRecordingCanvas();
       if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCtx) {
         console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "ctx=", !!this.recordingCtx);
         return;
