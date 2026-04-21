@@ -8372,6 +8372,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.initRecordingUi();
       this.loadCustomBackground();
       this.loadSprites();
+      this.showMenu(TEXT.choose);
       fitCanvas(this.canvas);
       window.addEventListener("resize", () => fitCanvas(this.canvas));
       requestAnimationFrame((time) => this.frame(time));
