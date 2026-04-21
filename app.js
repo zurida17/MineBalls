@@ -21,9 +21,15 @@
     height: Math.round(HEIGHT * RECORDING_BUFFER_SCALE),
   };
   const RECORDING_FPS = 60; // higher FPS for smoother video
+  const RECORDING_FPS_LOW = 30; // fallback for weak systems
   const RECORDING_VIDEO_BITRATE = 30000000; // 30Mbps for 4K at 60fps
+  const RECORDING_VIDEO_BITRATE_LOW = 10000000; // 10Mbps for weak systems
   const RECORDING_AUDIO_BITRATE = 192000;
   const RECORDING_EXPORT_FRAME_MS = Math.round(1000 / RECORDING_FPS);
+  const RECORDING_FRAME_TIME_MS = 1000 / RECORDING_FPS; // time between frames in milliseconds (~16.67ms for 60fps)
+  const RECORDING_ENCODER_QUEUE_THRESHOLD = 5; // max frames queued before we consider encoder overloaded
+  const RECORDING_AUTO_QUALITY_SWITCH = true; // automatically reduce quality if encoder can't keep up
+  const RECORDING_DECOUPLE_FROM_GAME = true; // record at fixed FPS independent of game speed
 
   let RNG_STATE = (((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0);
 
@@ -8366,6 +8372,29 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingExportActive = false;
       this.recordingReplayInProgress = false;
       this.recordingPostResultMessage = "";
+      
+      // Recording encoder state tracking
+      this.recordingFramesEncoded = 0;
+      this.recordingFramesQueued = 0;
+      this.recordingEncoderLagWarning = false;
+      this.recordingActualFps = RECORDING_FPS;
+      this.recordingVideoCodec = 'vp09.00.10.08';
+      this.recordingReducedQuality = false;
+      this.recordingEncoderStartTime = 0;
+      this.recordingEncoderStats = {
+        framesSkipped: 0,
+        encoderOverloadEvents: 0,
+        maxFrameTime: 0,
+        totalFrameTime: 0,
+      };
+      
+      // Video time tracking for decoupled recording
+      this.recordingVideoTime = 0; // elapsed time in recording (milliseconds)
+      this.recordingNextFrameTime = 0; // when next frame should be encoded
+      this.recordingLastRealTime = 0; // last real time we checked
+      this.recordingLastGameTime = 0; // last game time
+      this.recordingReplayStartTime = 0; // when replay started
+      this.recordingVideoFrameIndex = 0; // which frame number are we at
 
       this.buildSelectors();
       this.bindUi();
@@ -9430,9 +9459,18 @@ startBattleRecording() {
       }
     }
 
-    startWebCodecsRecording() {
+    async startWebCodecsRecording() {
       this.recordingMime = 'video/webm;codecs=vp9';
       this.recordingExtension = 'webm';
+      
+      // Reset recording stats
+      this.recordingFramesEncoded = 0;
+      this.recordingFramesQueued = 0;
+      this.recordingEncoderLagWarning = false;
+      this.recordingActualFps = RECORDING_FPS;
+      this.recordingVideoCodec = 'vp09.00.10.08';
+      this.recordingReducedQuality = false;
+      this.recordingEncoderStartTime = 0;
 
       let resolveStop = () => {};
       const stopped = new Promise((resolve) => {
@@ -9441,33 +9479,94 @@ startBattleRecording() {
       this.recordingStopResolve = resolveStop;
       this.recordingStopPromise = stopped;
 
-      // Video Encoder
+      // Video Encoder - try VP9 first, fallback to other codecs if not supported
+      let videoCodec = 'vp09.00.10.08'; // VP9
+      let mimeType = 'video/webm;codecs=vp9';
+      let extension = 'webm';
+      let bitrate = RECORDING_VIDEO_BITRATE;
+      let fps = RECORDING_FPS;
+      
+      // Check codec support
+      try {
+        const support = await VideoEncoder.isConfigSupported({
+          codec: videoCodec,
+          width: RECORDING_SIZE.width,
+          height: RECORDING_SIZE.height,
+          bitrate: bitrate,
+          framerate: fps,
+        });
+        if (!support.supported) {
+          console.warn('VP9 codec not supported, trying VP8');
+          videoCodec = 'vp8';
+          mimeType = 'video/webm;codecs=vp8';
+        }
+      } catch (e) {
+        console.warn('VP9 codec not supported, trying VP8:', e);
+        videoCodec = 'vp8';
+        mimeType = 'video/webm;codecs=vp8';
+      }
+
       const videoConfig = {
-        codec: 'vp09.00.10.08', // VP9
+        codec: videoCodec,
         width: RECORDING_SIZE.width,
         height: RECORDING_SIZE.height,
-        bitrate: RECORDING_VIDEO_BITRATE,
-        framerate: RECORDING_FPS,
+        bitrate: bitrate,
+        framerate: fps,
       };
 
-      this.videoEncoder = new VideoEncoder({
-        output: (chunk, metadata) => {
-          if (metadata.decoderConfig) {
-            this.recordedChunks.push(metadata.decoderConfig);
-          }
-          this.recordedChunks.push(chunk);
-        },
-        error: (e) => {
-          console.error('VideoEncoder error:', e);
-          this.stopWebCodecsRecording();
-          if (this.recordingStopResolve) {
-            this.recordingStopResolve();
-            this.recordingStopResolve = null;
-          }
-        },
-      });
+      try {
+        this.recordingEncoderStartTime = performance.now();
+        this.videoEncoder = new VideoEncoder({
+          output: (chunk, metadata) => {
+            try {
+              this.recordingFramesEncoded++;
+              this.recordingFramesQueued = Math.max(0, this.recordingFramesQueued - 1);
+              
+              if (metadata && metadata.decoderConfig) {
+                this.recordedChunks.push(metadata.decoderConfig);
+              }
+              if (chunk && chunk.type) {
+                this.recordedChunks.push(chunk);
+              }
+            } catch (e) {
+              console.error('Error processing encoder output:', e);
+            }
+          },
+          error: (e) => {
+            console.error('VideoEncoder error:', e);
+            this.recordingActive = false;
+            this.recordingExportActive = false;
+            this.recordingReplayInProgress = false;
+            this.recordingVideoTrack = null;
+            this.recordingStream = null;
+            this.videoEncoder = null;
+            this.syncRecordingButtons();
+            if (this.recordingStopResolve) {
+              this.recordingStopResolve();
+              this.recordingStopResolve = null;
+            }
+          },
+        });
 
-      this.videoEncoder.configure(videoConfig);
+        await this.videoEncoder.configure(videoConfig);
+        this.recordingMime = mimeType;
+        this.recordingExtension = extension;
+        this.recordingVideoCodec = videoCodec;
+        this.recordingActualFps = fps;
+        console.log('Video encoder configured with codec:', videoCodec, 'FPS:', fps, 'Bitrate:', bitrate);
+      } catch (e) {
+        console.error('Failed to configure video encoder:', e);
+        this.recordingActive = false;
+        this.recordingExportActive = false;
+        this.recordingReplayInProgress = false;
+        this.videoEncoder = null;
+        this.syncRecordingButtons();
+        if (this.recordingStopResolve) {
+          this.recordingStopResolve();
+          this.recordingStopResolve = null;
+        }
+        return stopped;
+      }
 
       // For now, skip audio to simplify
       this.audioEncoder = null;
@@ -9476,26 +9575,54 @@ startBattleRecording() {
     }
 
     async stopWebCodecsRecording() {
-      if (this.videoEncoder) {
-        await this.videoEncoder.flush();
-        this.videoEncoder.close();
-        this.videoEncoder = null;
-      }
-      if (this.audioEncoder) {
-        this.audioEncoder.close();
-        this.audioEncoder = null;
-      }
-      // Create WebM blob from chunks
-      if (this.recordedChunks.length) {
-        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
-        this.recordingBlob = blob;
-        this.recordingMime = 'video/webm';
-        this.recordingExtension = 'webm';
-        if (this.recordingUrl) {
-          URL.revokeObjectURL(this.recordingUrl);
+      try {
+        if (this.videoEncoder) {
+          try {
+            await this.videoEncoder.flush();
+          } catch (e) {
+            console.warn('Error flushing video encoder:', e);
+          }
+          this.videoEncoder.close();
+          this.videoEncoder = null;
         }
-        this.recordingUrl = URL.createObjectURL(blob);
+        if (this.audioEncoder) {
+          this.audioEncoder.close();
+          this.audioEncoder = null;
+        }
+      } catch (e) {
+        console.error('Error closing encoders:', e);
       }
+      
+      // Create WebM blob from chunks
+      if (this.recordedChunks && this.recordedChunks.length > 0) {
+        try {
+          console.log(`Creating blob from ${this.recordedChunks.length} chunks`);
+          const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+          this.recordingBlob = blob;
+          this.recordingMime = 'video/webm';
+          this.recordingExtension = 'webm';
+          
+          console.log('Blob created, size:', blob.size, 'bytes');
+          
+          if (blob.size < 100) {
+            console.warn('WARNING: Blob is very small (', blob.size, 'bytes). Video may be corrupted or empty.');
+          }
+          
+          if (this.recordingUrl) {
+            URL.revokeObjectURL(this.recordingUrl);
+          }
+          this.recordingUrl = URL.createObjectURL(blob);
+        } catch (e) {
+          console.error('Error creating blob:', e);
+          this.recordingBlob = null;
+          this.recordingUrl = null;
+        }
+      } else {
+        console.warn('No recorded chunks available. Video export failed.');
+        this.recordingBlob = null;
+        this.recordingUrl = null;
+      }
+      
       this.recordedChunks = [];
       this.syncRecordingButtons();
       if (this.recordingStopResolve) {
@@ -9539,7 +9666,18 @@ startBattleRecording() {
         });
         const replayDt = 1 / RECORDING_FPS;
         let frameIndex = 0;
+        let frameErrors = 0;
+        let frameSkipped = 0;
+        let replayStartTime = performance.now();
+        let lastDiagnosticLog = replayStartTime;
+        
+        // Initialize video time tracking for decoupled recording
+        this.recordingVideoTime = 0;
+        this.recordingNextFrameTime = RECORDING_FRAME_TIME_MS;
+        this.recordingVideoFrameIndex = 0;
+        
         while (!this.result.winner && this.mode !== MODES.MENU) {
+          // Update game logic at consistent rate
           this.update(replayDt);
           this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
           this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
@@ -9554,14 +9692,92 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
-          if (this.recordingUseWebCodecs && this.videoEncoder) {
-            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: frameIndex * RECORDING_EXPORT_FRAME_MS * 1000 });
-            this.videoEncoder.encode(frame);
-            frame.close();
-          } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
-            this.recordingVideoTrack.requestFrame();
+          
+          // Update video time (in milliseconds) - advances at RECORDING_FPS rate regardless of game speed
+          this.recordingVideoTime += replayDt * 1000; // convert to milliseconds
+          
+          // Encode frames at fixed intervals independent of game speed
+          if (RECORDING_DECOUPLE_FROM_GAME) {
+            // Keep encoding frames until we catch up to current game time
+            while (this.recordingVideoTime >= this.recordingNextFrameTime && this.recordingUseWebCodecs && this.videoEncoder) {
+              try {
+                const timestampMicros = this.recordingVideoFrameIndex * RECORDING_EXPORT_FRAME_MS * 1000;
+                const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: timestampMicros });
+                this.recordingFramesQueued++;
+                this.videoEncoder.encode(frame);
+                frame.close();
+                this.recordingVideoFrameIndex++;
+                this.recordingNextFrameTime += RECORDING_FRAME_TIME_MS;
+              } catch (e) {
+                frameErrors++;
+                this.recordingEncoderStats.framesSkipped++;
+                if (frameErrors === 1) {
+                  console.error('Error encoding frame:', e);
+                }
+                if (frameErrors > 20) {
+                  console.error('Too many frame encoding errors, stopping export');
+                  throw e;
+                }
+                break; // exit inner loop on error
+              }
+            }
+          } else {
+            // Old behavior: encode one frame per game update (can have varying framerate)
+            if (this.recordingUseWebCodecs && this.videoEncoder) {
+              // Check encoder queue backlog every 30 frames
+              if (frameIndex % 30 === 0) {
+                const estimatedQueueLength = frameIndex - this.recordingFramesEncoded;
+                if (estimatedQueueLength > RECORDING_ENCODER_QUEUE_THRESHOLD) {
+                  if (!this.recordingEncoderLagWarning) {
+                    this.recordingEncoderLagWarning = true;
+                    console.warn('⚠️ Encoder is falling behind! Queue length:', estimatedQueueLength);
+                    this.recordingEncoderStats.encoderOverloadEvents++;
+                  }
+                  // Skip every other frame if too much backlog
+                  if ((frameIndex % 2) === 0) {
+                    frameSkipped++;
+                    frameIndex++;
+                    continue;
+                  }
+                } else {
+                  this.recordingEncoderLagWarning = false;
+                }
+              }
+              
+              try {
+                const timestampMicros = frameIndex * RECORDING_EXPORT_FRAME_MS * 1000;
+                const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: timestampMicros });
+                this.recordingFramesQueued++;
+                this.videoEncoder.encode(frame);
+                frame.close();
+              } catch (e) {
+                frameErrors++;
+                this.recordingEncoderStats.framesSkipped++;
+                if (frameErrors === 1) {
+                  console.error('Error encoding frame:', e);
+                }
+                if (frameErrors > 10) {
+                  console.error('Too many frame encoding errors, stopping export');
+                  throw e;
+                }
+              }
+            } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+              this.recordingVideoTrack.requestFrame();
+            }
           }
+          
           frameIndex++;
+          
+          // Log diagnostics every second
+          const now = performance.now();
+          if (now - lastDiagnosticLog > 1000) {
+            const elapsedSec = (now - replayStartTime) / 1000;
+            const actualFps = frameIndex / elapsedSec;
+            const encodedPercent = this.recordingFramesEncoded > 0 ? Math.round((this.recordingFramesEncoded / this.recordingVideoFrameIndex) * 100) : 0;
+            console.log(`Recording: frame ${frameIndex}, video frame ${this.recordingVideoFrameIndex}, game FPS: ${actualFps.toFixed(1)}, encoded: ${encodedPercent}%, queued: ${this.recordingFramesQueued}`);
+            lastDiagnosticLog = now;
+          }
+          
           // Allow UI to update every 100 frames
           if (frameIndex % 100 === 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
@@ -9582,12 +9798,38 @@ startBattleRecording() {
             RECORDING_SIZE.width,
             RECORDING_SIZE.height
           );
-          if (this.recordingUseWebCodecs && this.videoEncoder) {
-            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: (frameIndex + hold) * RECORDING_EXPORT_FRAME_MS * 1000 });
-            this.videoEncoder.encode(frame);
-            frame.close();
-          } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
-            this.recordingVideoTrack.requestFrame();
+          
+          // Encode hold frames with fixed timing
+          this.recordingVideoTime += replayDt * 1000;
+          
+          if (RECORDING_DECOUPLE_FROM_GAME) {
+            while (this.recordingVideoTime >= this.recordingNextFrameTime && this.recordingUseWebCodecs && this.videoEncoder) {
+              try {
+                const timestampMicros = this.recordingVideoFrameIndex * RECORDING_EXPORT_FRAME_MS * 1000;
+                const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: timestampMicros });
+                this.recordingFramesQueued++;
+                this.videoEncoder.encode(frame);
+                frame.close();
+                this.recordingVideoFrameIndex++;
+                this.recordingNextFrameTime += RECORDING_FRAME_TIME_MS;
+              } catch (e) {
+                console.error('Error encoding hold frame:', e);
+                break;
+              }
+            }
+          } else {
+            if (this.recordingUseWebCodecs && this.videoEncoder) {
+              try {
+                const timestampMicros = (frameIndex + hold) * RECORDING_EXPORT_FRAME_MS * 1000;
+                const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: timestampMicros });
+                this.videoEncoder.encode(frame);
+                frame.close();
+              } catch (e) {
+                console.error('Error encoding hold frame:', e);
+              }
+            } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
+              this.recordingVideoTrack.requestFrame();
+            }
           }
         }
         console.log("Stopping recorder");
@@ -9600,7 +9842,30 @@ startBattleRecording() {
           this.recorder.stop();
         }
         await stoppedPromise;
-        console.log("Export completed, blob size:", this.recordingBlob ? this.recordingBlob.size : "none");
+        
+        // Log detailed recording statistics
+        const recordingDurationSec = this.recordingEncoderStartTime > 0 ? (performance.now() - this.recordingEncoderStartTime) / 1000 : 0;
+        const blobSizeKb = this.recordingBlob ? (this.recordingBlob.size / 1024).toFixed(2) : "none";
+        const bitrateMbps = this.recordingBlob && recordingDurationSec > 0 ? ((this.recordingBlob.size * 8) / (recordingDurationSec * 1000000)).toFixed(2) : "N/A";
+        const videoLengthSec = (this.recordingVideoTime / 1000).toFixed(1);
+        
+        console.log("✅ Export completed");
+        console.log(`  📊 Blob size: ${blobSizeKb} KB`);
+        console.log(`  ⏱️  Encoding time: ${recordingDurationSec.toFixed(1)}s`);
+        console.log(`  🎥 Video length: ${videoLengthSec}s`);
+        console.log(`  📹 Actual bitrate: ${bitrateMbps} Mbps`);
+        if (RECORDING_DECOUPLE_FROM_GAME) {
+          console.log(`  🎬 Video frames encoded: ${this.recordingVideoFrameIndex} (@ ${RECORDING_FPS} FPS)`);
+          console.log(`  🕹️  Game updates: ${frameIndex}`);
+        } else {
+          console.log(`  🎬 Frames encoded: ${this.recordingFramesEncoded}`);
+        }
+        console.log(`  ⏭️  Frames skipped: ${this.recordingEncoderStats.framesSkipped}`);
+        console.log(`  ⚠️  Encoder overload events: ${this.recordingEncoderStats.encoderOverloadEvents}`);
+        console.log(`  🔧 Codec: ${this.recordingVideoCodec}`);
+        console.log(`  🔓 Decoupled recording: ${RECORDING_DECOUPLE_FROM_GAME ? 'YES (smooth video)' : 'NO (variable FPS)'}`);
+        
+        
         this.recordingReplayInProgress = false;
         this.recordingExportActive = false;
         this.recordingActive = false;
@@ -9611,16 +9876,41 @@ startBattleRecording() {
 
 downloadBattleRecording() {
       if (!this.recordingUrl) {
+        console.warn("No recording available to download");
+        alert("Ошибка: нет записи для скачивания. Попробуйте переиграть бой.");
         return;
       }
+      
+      if (!this.recordingBlob) {
+        console.warn("Recording blob is not available");
+        alert("Ошибка: видео не готово к скачиванию.");
+        return;
+      }
+      
+      const blobSizeKb = (this.recordingBlob.size / 1024).toFixed(2);
+      
+      if (this.recordingBlob.size < 1000) {
+        console.warn("Recording blob is very small:", this.recordingBlob.size, "bytes");
+        const confirmed = confirm(`⚠️ Внимание!\n\nРазмер видео: ${blobSizeKb} КБ (очень маленький)\nВидео может быть повреждено или не полное\n\nВы уверены что хотите скачать?`);
+        if (!confirmed) {
+          return;
+        }
+      } else {
+        console.log(`Recording ready to download: ${blobSizeKb} KB, codec: ${this.recordingMime}`);
+      }
+      
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const ext = this.recordingExtension || this.getRecordingExtension(this.recordingMime);
+      const filename = `battle-${stamp}.${ext}`;
+      
       const link = document.createElement("a");
       link.href = this.recordingUrl;
-      link.download = `battle-${stamp}.${ext}`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      console.log("📥 Recording downloaded:", filename, `(${blobSizeKb} KB)`);
     }
 
     drawRecordingHeader(ctx, x, y, width, height = 160) {
