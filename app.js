@@ -8298,7 +8298,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.canvas = canvas;
       this.canvas.width = WIDTH;
       this.canvas.height = HEIGHT;
-      this.ctx = canvas.getContext("2d", { alpha: false, desynchronized: false });
+      this.ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
       if (this.ctx && "imageSmoothingQuality" in this.ctx) {
         this.ctx.imageSmoothingQuality = "high";
       }
@@ -8357,7 +8357,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingStopResolve = null;
       this.recordingStopPromise = null;
       this.recordedChunks = [];
-      this.recordingBlob = null;
+      this.recordingBlob = null;в
       this.recordingUrl = "";
       this.recordingMime = "";
       this.recordingExtension = "webm";
@@ -9272,6 +9272,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.ui.downloadBattleButton.textContent = `Download battle (.${this.recordingExtension || "webm"})`;
       this.ui.recordBattleButton.disabled = this.recordingExportActive;
       this.ui.downloadBattleButton.disabled = !this.recordingUrl || this.recordingExportActive;
+      console.log("syncRecordingButtons: url=", !!this.recordingUrl, "exportActive=", this.recordingExportActive, "disabled=", this.ui.downloadBattleButton.disabled);
     }
 
     toggleRecordingEnabled() {
@@ -9486,6 +9487,7 @@ startBattleRecording() {
       }
       // Create WebM blob from chunks
       if (this.recordedChunks.length) {
+        console.log("Creating blob from", this.recordedChunks.length, "chunks");
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
         this.recordingBlob = blob;
         this.recordingMime = 'video/webm';
@@ -9494,6 +9496,8 @@ startBattleRecording() {
           URL.revokeObjectURL(this.recordingUrl);
         }
         this.recordingUrl = URL.createObjectURL(blob);
+      } else {
+        console.log("No chunks to create blob");
       }
       this.recordedChunks = [];
       this.syncRecordingButtons();
@@ -9608,6 +9612,7 @@ startBattleRecording() {
     }
 
 downloadBattleRecording() {
+      console.log("downloadBattleRecording: url=", this.recordingUrl);
       if (!this.recordingUrl) {
         return;
       }
