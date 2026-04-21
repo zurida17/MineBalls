@@ -8362,8 +8362,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
       this.recordingMime = "";
       this.recordingExtension = "webm";
       this.recordingVideoTrack = null;
-      this.recordingCaptureActive = false;
-      this.recordingCaptureDts = [];
       this.recordingCaptureMeta = null;
       this.recordingExportActive = false;
       this.recordingReplayInProgress = false;
@@ -9266,8 +9264,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
       const formatLabel = (this.recordingExtension || "webm").toUpperCase();
       if (this.recordingExportActive) {
         this.ui.recordBattleButton.textContent = `Recording ${formatLabel}: RENDERING...`;
-      } else if (this.recordingCaptureActive) {
-        this.ui.recordBattleButton.textContent = `Recording ${formatLabel}: CAPTURING`;
       } else {
         this.ui.recordBattleButton.textContent = this.recordingEnabled
           ? `Recording ${formatLabel}: ON`
@@ -9283,9 +9279,6 @@ function updatePreviewElytra(weapon, dt, enemy) {
         return;
       }
       this.recordingEnabled = !this.recordingEnabled;
-      if (!this.recordingEnabled && this.recordingCaptureActive) {
-        this.stopBattleRecording({ keepCurrent: true, suppressExport: true });
-      }
       AUDIO.init();
       AUDIO.resume();
       AUDIO.ensureMusicBus();
@@ -9307,7 +9300,7 @@ function updatePreviewElytra(weapon, dt, enemy) {
     }
 
 startBattleRecording() {
-      if (!this.recordingSupported || !this.recordingEnabled || this.recordingCaptureActive || this.recordingExportActive) {
+      if (!this.recordingSupported || !this.recordingEnabled || this.recordingExportActive) {
         return;
       }
       if (this.tournament && this.tournament.active) {
@@ -9323,8 +9316,6 @@ startBattleRecording() {
         seed: this.currentBattleMeta.seed,
       };
       this.recordingPostResultMessage = "";
-      this.recordingCaptureDts = [];
-      this.recordingCaptureActive = true;
       this.recordingActive = true;
       this.syncRecordingButtons();
     }
@@ -9342,15 +9333,13 @@ startBattleRecording() {
       if (!keepCurrent) {
         this.recordingBlob = null;
       }
-      const hadCapture = this.recordingCaptureActive;
-      this.recordingCaptureActive = false;
+      const hadCapture = this.recordingActive && this.recordingCaptureMeta;
       this.recordingActive = false;
       if (
         hadCapture &&
         !suppressExport &&
         !this.recordingExportActive &&
-        this.recordingCaptureMeta &&
-        this.recordingCaptureDts.length
+        this.recordingCaptureMeta
       ) {
         void this.exportCapturedBattle();
       }
@@ -9515,14 +9504,12 @@ startBattleRecording() {
     }
 
     async exportCapturedBattle() {
-      if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCaptureDts.length || !this.recordingCtx) {
-        console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "dts=", this.recordingCaptureDts.length, "ctx=", !!this.recordingCtx);
+      if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCtx) {
+        console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "ctx=", !!this.recordingCtx);
         return;
       }
       const captureMeta = this.recordingCaptureMeta;
-      const captureDts = this.recordingCaptureDts.slice();
       this.recordingCaptureMeta = null;
-      this.recordingCaptureDts = [];
       this.recordingExportActive = true;
       this.recordingReplayInProgress = true;
       this.recordingActive = true;
@@ -9540,7 +9527,7 @@ startBattleRecording() {
 
       const finalMessage = this.recordingPostResultMessage || TEXT.choose;
       try {
-        console.log("Starting export replay for", captureDts.length, "frames");
+        console.log("Starting export replay");
         this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
           countdown: false,
           hideMenu: false,
@@ -9548,11 +9535,9 @@ startBattleRecording() {
           skipAudio: false,
           seed: captureMeta.seed,
         });
-        const frameCount = captureDts.length;
         const replayDt = 1 / RECORDING_FPS;
-        const exportStartTime = performance.now();
-      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-          const frameStart = performance.now();
+        let frameIndex = 0;
+        while (!this.result.winner && this.mode !== MODES.MENU) {
           this.update(replayDt);
           this.renderToCanvas(this.recordingBufferCtx, RECORDING_BUFFER_SIZE.width, RECORDING_BUFFER_SIZE.height);
           this.recordingCtx.clearRect(0, 0, RECORDING_SIZE.width, RECORDING_SIZE.height);
@@ -9574,12 +9559,10 @@ startBattleRecording() {
           } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          const elapsed = performance.now() - exportStartTime;
-          const target = (frameIndex + 1) * RECORDING_EXPORT_FRAME_MS;
-          const delay = Math.max(target - elapsed, 0);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          if (frameIndex % 10 === 0) {
-            console.log(`Exported frame ${frameIndex}/${frameCount}`);
+          frameIndex++;
+          // Allow UI to update every 100 frames
+          if (frameIndex % 100 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
         console.log("Exporting hold frames");
@@ -9598,16 +9581,12 @@ startBattleRecording() {
             RECORDING_SIZE.height
           );
           if (this.recordingUseWebCodecs && this.videoEncoder) {
-            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: (frameCount + hold) * RECORDING_EXPORT_FRAME_MS * 1000 });
+            const frame = new VideoFrame(this.recordingCtx.canvas, { timestamp: (frameIndex + hold) * RECORDING_EXPORT_FRAME_MS * 1000 });
             this.videoEncoder.encode(frame);
             frame.close();
           } else if (this.recordingVideoTrack && typeof this.recordingVideoTrack.requestFrame === "function") {
             this.recordingVideoTrack.requestFrame();
           }
-          const elapsed = performance.now() - exportStartTime;
-          const target = (frameCount + hold + 1) * RECORDING_EXPORT_FRAME_MS;
-          const delay = Math.max(target - elapsed, 0);
-          await new Promise((resolve) => setTimeout(resolve, delay));
         }
         console.log("Stopping recorder");
       } catch (error) {
@@ -9623,8 +9602,6 @@ startBattleRecording() {
         this.recordingReplayInProgress = false;
         this.recordingExportActive = false;
         this.recordingActive = false;
-        this.mode = MODES.MENU;
-        this.showMenu(finalMessage);
         this.syncMenu();
         this.syncRecordingButtons();
       }
@@ -10383,9 +10360,6 @@ URL.revokeObjectURL(link.href);
         this.accumulator -= fixedDt;
       }
 
-      if (this.recordingCaptureActive) {
-        this.recordingCaptureDts.push(dt);
-      }
       this.render();
       requestAnimationFrame((time) => this.frame(time));
     }
@@ -10435,10 +10409,8 @@ URL.revokeObjectURL(link.href);
               ? `${TEXT.winner}: ${this.result.winner.name}. ${TEXT.replay}`
               : `${TEXT.draw}. ${TEXT.replay}`;
             this.stopBattleRecording({ keepCurrent: true, resultMessage: message });
-            if (!this.recordingExportActive) {
-              this.mode = MODES.MENU;
-              this.showMenu(message);
-            }
+            this.mode = MODES.MENU;
+            this.showMenu(message);
           }
         }
         return;
@@ -10695,21 +10667,6 @@ URL.revokeObjectURL(link.href);
       const offsetX = Math.round((targetWidth - drawWidth) * 0.5);
       const offsetY = Math.round((targetHeight - drawHeight) * 0.5);
 
-      const lowQualityPreview = targetCtx === this.ctx && this.recordingCaptureActive;
-      if (lowQualityPreview) {
-        targetCtx.clearRect(0, 0, targetWidth, targetHeight);
-        targetCtx.fillStyle = "#020612";
-        targetCtx.fillRect(0, 0, targetWidth, targetHeight);
-        targetCtx.fillStyle = "#f5f7ff";
-        targetCtx.font = "28px Consolas, monospace";
-        targetCtx.textAlign = "center";
-        targetCtx.textBaseline = "middle";
-        targetCtx.fillText("Recording for 4K export...", targetWidth / 2, targetHeight / 2 - 18);
-        targetCtx.font = "18px Consolas, monospace";
-        targetCtx.fillText("Live preview disabled for smooth capture.", targetWidth / 2, targetHeight / 2 + 18);
-        return;
-      }
-
       const fastRecordingExport = targetCtx === this.recordingCtx && this.recordingExportActive;
       targetCtx.clearRect(0, 0, targetWidth, targetHeight);
       targetCtx.fillStyle = "#070b18";
@@ -10746,7 +10703,7 @@ URL.revokeObjectURL(link.href);
       }
 
       this.drawFighters(targetCtx);
-      if (!lowQualityPreview && !fastRecordingExport) {
+      if (!fastRecordingExport) {
         for (const particle of this.particles) {
           particle.draw(targetCtx);
         }
