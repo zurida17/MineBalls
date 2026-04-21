@@ -9352,6 +9352,7 @@ startBattleRecording() {
     }
 
     stopBattleRecording(options = {}) {
+      console.log("stopBattleRecording() called!", options);
       const keepCurrent = options.keepCurrent !== false;
       const suppressExport = options.suppressExport === true;
       if (typeof options.resultMessage === "string") {
@@ -9366,12 +9367,14 @@ startBattleRecording() {
       }
       const hadCapture = this.recordingActive && this.recordingCaptureMeta;
       this.recordingActive = false;
+      console.log("stopBattleRecording check: hadCapture=", hadCapture, "suppressExport=", suppressExport, "exportActive=", this.recordingExportActive);
       if (
         hadCapture &&
         !suppressExport &&
         !this.recordingExportActive &&
         this.recordingCaptureMeta
       ) {
+        console.log("Triggering export from stopBattleRecording...");
         void this.exportCapturedBattle();
       }
       this.syncRecordingButtons();
@@ -9666,7 +9669,14 @@ startBattleRecording() {
       try {
         // Create stream from canvas
         const stream = this.recordingCtx.canvas.captureStream(RECORDING_FPS);
-        console.log(`Stream created with ${stream.getTracks().length} tracks`);
+        const tracks = stream.getTracks();
+        console.log(`Stream created with ${tracks.length} tracks`);
+        if (tracks.length === 0) {
+          console.error("ERROR: captureStream returned no video tracks!");
+        }
+        tracks.forEach((track, idx) => {
+          console.log(`  Track ${idx}: kind=${track.kind}, enabled=${track.enabled}, readyState=${track.readyState}`);
+        });
         
         // Create and start MediaRecorder
         this.recordedChunks = [];
@@ -9687,13 +9697,6 @@ startBattleRecording() {
           console.error('MediaRecorder error:', e);
         };
         
-        mediaRecorder.ondataavailable = (e) => {
-          console.log(`Data available: ${e.data.size} bytes`);
-          if (e.data.size > 0) {
-            this.recordedChunks.push(e.data);
-          }
-        };
-        
         // Set up the final blob creation - will be called when mediaRecorder stops
         const createBlobFromChunks = () => {
           const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
@@ -9704,8 +9707,15 @@ startBattleRecording() {
           console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes, ${this.recordedChunks.length} chunks`);
         };
         
+        mediaRecorder.ondataavailable = (e) => {
+          console.log(`Data available: ${e.data.size} bytes, chunks count now: ${this.recordedChunks.length + 1}`);
+          if (e.data.size > 0) {
+            this.recordedChunks.push(e.data);
+          }
+        };
+        
         mediaRecorder.onstop = () => {
-          console.log("MediaRecorder onstop fired, creating blob...");
+          console.log(`MediaRecorder onstop fired with ${this.recordedChunks.length} chunks, creating blob...`);
           createBlobFromChunks();
         };
         
@@ -9821,14 +9831,17 @@ startBattleRecording() {
     }
 
     async exportCapturedBattle() {
+      console.log("exportCapturedBattle() called!");
       this.ensureRecordingCanvas();
       if (this.recordingExportActive || !this.recordingCaptureMeta || !this.recordingCtx) {
         console.log("Export skipped: exportActive=", this.recordingExportActive, "meta=", !!this.recordingCaptureMeta, "ctx=", !!this.recordingCtx);
         return;
       }
       
+      console.log("Export proceeding, RECORDING_USE_MEDIARECORDER_FOR_EXPORT =", RECORDING_USE_MEDIARECORDER_FOR_EXPORT);
       // Use MediaRecorder for export if available - it's more reliable than WebCodecs for this use case
       if (RECORDING_USE_MEDIARECORDER_FOR_EXPORT) {
+        console.log("Calling exportCapturedBattleWithMediaRecorder()...");
         return this.exportCapturedBattleWithMediaRecorder();
       }
       
