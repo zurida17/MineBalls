@@ -9666,15 +9666,29 @@ startBattleRecording() {
       try {
         // Create stream from canvas
         const stream = this.recordingCtx.canvas.captureStream(RECORDING_FPS);
+        console.log(`Stream created with ${stream.getTracks().length} tracks`);
         
         // Create and start MediaRecorder
         this.recordedChunks = [];
-        const mediaRecorder = new MediaRecorder(stream, {
-          mimeType: 'video/webm;codecs=vp9',
-          videoBitsPerSecond: RECORDING_VIDEO_BITRATE
-        });
+        
+        // Try VP9, fallback to VP8 or basic WebM
+        let options = { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: RECORDING_VIDEO_BITRATE };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: RECORDING_VIDEO_BITRATE };
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm', videoBitsPerSecond: RECORDING_VIDEO_BITRATE };
+          }
+        }
+        console.log(`Using MIME type: ${options.mimeType}`);
+        
+        const mediaRecorder = new MediaRecorder(stream, options);
+        
+        mediaRecorder.onerror = (e) => {
+          console.error('MediaRecorder error:', e);
+        };
         
         mediaRecorder.ondataavailable = (e) => {
+          console.log(`Data available: ${e.data.size} bytes`);
           if (e.data.size > 0) {
             this.recordedChunks.push(e.data);
           }
@@ -9686,10 +9700,11 @@ startBattleRecording() {
           this.recordingMime = 'video/webm';
           this.recordingExtension = 'webm';
           this.recordingUrl = URL.createObjectURL(blob);
-          console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes`);
+          console.log(`✅ Export completed with MediaRecorder: ${blob.size} bytes, ${this.recordedChunks.length} chunks`);
         };
         
         mediaRecorder.start(100); // Request data every 100ms
+        console.log(`MediaRecorder started, state: ${mediaRecorder.state}`);
         
         // Run replay
         this.setupBattle(captureMeta.leftWeaponId, captureMeta.rightWeaponId, {
@@ -9734,7 +9749,21 @@ startBattleRecording() {
           await new Promise(resolve => setTimeout(resolve, 0));
         }
         
-        mediaRecorder.stop();
+        // Request any remaining buffered data and wait for it
+        console.log(`Requesting final data, state before: ${mediaRecorder.state}`);
+        mediaRecorder.requestData();
+        
+        // Wait for all data to be collected
+        await new Promise((resolve) => {
+          const originalOnstop = mediaRecorder.onstop;
+          mediaRecorder.onstop = () => {
+            originalOnstop?.call(mediaRecorder);
+            resolve();
+          };
+          mediaRecorder.stop();
+        });
+        
+        console.log(`MediaRecorder stopped, collected ${this.recordedChunks.length} chunks`);
         
       } catch (e) {
         console.error("Export failed:", e);
